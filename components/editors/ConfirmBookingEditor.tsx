@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = {
       sendViaWhatsapp: false,
       subject: "✅ Turno Confirmado: {{servicio}}",
       body: "Hola {{cliente}}, tu turno ha sido confirmado. Precio final: {{precio_total}}.",
+      whatsappBody: "",
       bannerUrl: ""
     },
     reminder: {
@@ -68,6 +69,7 @@ const DEFAULT_CONFIG = {
       sendViaWhatsapp: false,
       subject: "⏰ Recordatorio: Turno mañana",
       body: "Hola {{cliente}}, te esperamos mañana a las {{fecha}}.",
+      whatsappBody: "",
       bannerUrl: ""
     },
     deposit: {
@@ -76,6 +78,7 @@ const DEFAULT_CONFIG = {
       sendViaWhatsapp: false,
       subject: "📢 Solicitud recibida: Falta Seña",
       body: "Hola {{cliente}}, para confirmar tu turno debes abonar una seña de {{monto_senia}}.",
+      whatsappBody: "",
       bannerUrl: ""
     }
   }
@@ -733,21 +736,31 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                                 </div>
                                 
                                 {/* Cuerpo */}
-                                <div>
-                                    <label className="text-[10px] font-bold text-zinc-400 uppercase flex justify-between">
-                                        Mensaje
-                                    </label>
-                                    <div className="text-[9px] text-indigo-500 mb-1 bg-indigo-50 p-1.5 rounded border border-indigo-100">
-                                        <strong>Generales:</strong> {'{{cliente}}'}, {'{{fecha}}'}, {'{{servicio}}'}{activeType === 'deposit' || activeType === 'confirmation' ? ', {{precio_total}}' : ''}{activeType === 'deposit' ? ', {{monto_senia}}' : ''}
-                                        <br />
-                                        <strong>Del profesional:</strong> {'{{alias}}'}, {'{{telefono_trabajador}}'}
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Mensaje Email (HTML)</label>
+                                        <textarea 
+                                            rows={4}
+                                            value={template.body}
+                                            onChange={(e) => updateConfigField('notifications', activeType, { ...template, body: e.target.value })}
+                                            className="w-full p-2 border rounded-lg text-sm bg-white"
+                                        />
                                     </div>
-                                    <textarea 
-                                        rows={6}
-                                        value={template.body}
-                                        onChange={(e) => updateConfigField('notifications', activeType, { ...template, body: e.target.value })}
-                                        className="w-full p-2 border rounded-lg text-sm bg-white text-zinc-600 leading-relaxed"
-                                    />
+
+                                    {template.sendViaWhatsapp && (
+                                        <div className="animate-in fade-in slide-in-from-top-1">
+                                            <label className="text-[10px] font-bold text-green-600 uppercase">Mensaje WhatsApp (Texto Plano)</label>
+                                            <textarea 
+                                                rows={4}
+                                                value={template.whatsappBody || ""}
+                                                placeholder="Hola {{cliente}}, tu turno..."
+                                                onChange={(e) => updateConfigField('notifications', activeType, { ...template, whatsappBody: e.target.value })}
+                                                className="w-full p-2 border border-green-200 rounded-lg text-sm bg-green-50/30"
+                                            />
+                                            <p className="text-[9px] text-green-600 mt-1 italic">Este mensaje se enviará junto con la imagen del banner si está configurada.</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Banner */}

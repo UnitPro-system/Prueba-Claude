@@ -82,7 +82,11 @@ export async function GET(req: Request) {
                         servicio: turno.servicio,
                         fecha: fechaLegible
                     },
-                    turno.negocios.whatsapp_access_token
+                    turno.negocios.whatsapp_access_token,
+                    // Prioriza el texto de WhatsApp, si no existe usa el del email
+                    notifReminder.whatsappBody || notifReminder.body, 
+                    // Envía la imagen si está configurada en el banner
+                    notifReminder.bannerUrl 
                 );
             } catch (wsError) {
                 console.error(`Error en WhatsApp para turno ${turno.id}:`, wsError);

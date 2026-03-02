@@ -129,7 +129,8 @@ export interface BookingConfig {
 export interface EmailTemplate {
   enabled: boolean;
   subject: string;
-  body: string; // Soporta HTML básico o texto plano
+  body: string;
+  whatsappBody?: string; 
   bannerUrl?: string; // Imagen de cabecera
   sendViaEmail?: boolean;      // NUEVO: Switch para Email
   sendViaWhatsapp?: boolean;   // NUEVO: Switch para WhatsApp

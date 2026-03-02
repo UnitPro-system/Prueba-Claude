@@ -264,7 +264,10 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
                 turno.cliente_telefono, 
                 templateType, 
                 variablesNotificacion,
-                negocio.whatsapp_access_token // <-- AGREGAMOS ESTA LÍNEA AQUÍ
+                negocio.whatsapp_access_token, // O instancia correspondiente
+                notifConfig.whatsappBody || notifConfig.body, // Prioridad al texto de WA
+                notifConfig.bannerUrl
+
             );
         }
 
@@ -411,7 +414,11 @@ export async function markDepositPaid(turnoId: string) {
                         turno.cliente_telefono,
                         'confirmation',
                         variablesNotificacion,
-                        negocio.whatsapp_access_token
+                        negocio.whatsapp_access_token,
+                        // CAMBIO: Usar whatsappBody con fallback a body
+                        notifConfig.whatsappBody || notifConfig.body, 
+                        // CAMBIO: Agregar el bannerUrl como 6to parámetro
+                        notifConfig.bannerUrl 
                     );
                 } catch(e) {
                     console.error("Error WhatsApp confirmación final:", e);

@@ -819,14 +819,14 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                     {/* Contenedor Scrollable */}
                     <div 
                         ref={scrollContainerRef}
-                        className={`flex gap-6 overflow-x-auto pb-8 px-2 snap-x snap-mandatory ${reviews.length > 3 ? 'cursor-grab active:cursor-grabbing' : 'justify-center'}`}
+                        className={`flex gap-6 overflow-x-auto pb-8 px-6 snap-x snap-mandatory ${reviews.length > 3 ? 'cursor-grab active:cursor-grabbing' : 'md:justify-center'}`}
                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Oculta la barra de scroll nativa
                     >
                         {reviews.map((review) => (
                             <div 
                                 key={review.id} 
-                                // CAMBIO: Usamos anchos fijos (w-[350px]) en lugar de grid flexible
-                                className={`snap-center shrink-0 w-[85vw] md:w-[350px] lg:w-[400px] p-6 bg-white shadow-sm border border-zinc-100 flex flex-col ${cardRadius}`}
+                                
+                                className={`snap-start shrink-0 w-[85vw] md:w-[350px] lg:w-[400px] p-6 bg-white shadow-sm border border-zinc-100 flex flex-col ${cardRadius}`}
                             >
                                 {/* Estrellas */}
                                 <div className="flex gap-1 mb-4">
@@ -856,6 +856,9 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                                 </div>
                             </div>
                         ))}
+
+                        {/* CAMBIO 3: Espaciador invisible para que la última tarjeta no quede pegada al borde en mobile */}
+                        <div className="w-1 md:hidden shrink-0"></div>
                     </div>
 
                     {/* Botón Derecha (Solo si hay +3 reseñas) */}

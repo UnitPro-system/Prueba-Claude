@@ -509,7 +509,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
       </nav>
 
       {/* --- HERO SECTION --- */}
-      <header id="inicio" className="relative w-full min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden py-28" onClick={(e) => handleEditClick(e, 'hero')}>
+      <header id="inicio" className="relative w-full min-h-[100svh] flex flex-col items-center justify-center overflow-hidden py-28" onClick={(e) => handleEditClick(e, 'hero')}>
          
          {/* Fondo con Overlay */}
          <div className="absolute inset-0 w-full h-full z-0">

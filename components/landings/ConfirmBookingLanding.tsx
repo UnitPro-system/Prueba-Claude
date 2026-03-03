@@ -522,8 +522,8 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
             
             {/* Logo en el Hero ajustado para que no rompa en mobile */}
             {config.logoUrl && (
-                <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 flex items-center justify-center mb-6 md:mb-10 transform hover:scale-105 transition-transform duration-500">
-                     <img src={config.logoUrl} alt="Logo Hero" className="w-full h-full object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.4)]"/>
+                <div className="w-44 h-44 sm:w-48 sm:h-48 md:w-52 md:h-52 flex items-center justify-center mb-14 md:mb-16 transform hover:scale-105 transition-transform duration-500">
+                    <img src={config.logoUrl} alt="Logo Hero" className="w-full h-full object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.4)]"/>
                 </div>
             )}
 

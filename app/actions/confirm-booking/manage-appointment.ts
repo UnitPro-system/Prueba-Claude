@@ -375,12 +375,12 @@ export async function markDepositPaid(turnoId: string) {
                 const eventWorkerId = shared['saas_worker_id'] ? String(shared['saas_worker_id']).trim() : null;
 
                 if (availabilityMode === 'global') {
+                    // En modo global, cualquier evento consume toda la capacidad de la sala
                     overlappingCount += capacity; 
                 } else {
-                    if (!eventWorkerId) {
-                        overlappingCount += capacity; 
-                    } else if (targetWorkerId && eventWorkerId === targetWorkerId) {
-                        overlappingCount += 1; 
+                    // Si el evento no tiene ID (bloqueo manual) o coincide con el profesional
+                    if (!eventWorkerId || (targetWorkerId && eventWorkerId === targetWorkerId)) {
+                        overlappingCount += 1; // <--- CAMBIADO: Sumamos 1 solo lugar ocupado
                     }
                 }
             }

@@ -37,6 +37,9 @@ export async function sendWhatsAppNotification(
             case 'reminder':
                 mensaje = `¡Hola *${variables.cliente}*! ⏰\n\nTe recordamos que tienes un turno para *${variables.servicio}* mañana a las ${variables.fecha}.\n\nPor favor, si no puedes asistir avísanos con anticipación. ¡Nos vemos!`;
                 break;
+            case 'cancellation':
+                mensaje = `¡Hola *${variables.cliente}*! ❌\n\nTe informamos que tu turno para *${variables.servicio}* el día ${variables.fecha} ha sido cancelado.\n\nSi deseas reprogramar, por favor vuelve a contactarnos. ¡Saludos!`;
+                break;
             default:
                 mensaje = `Hola ${variables.cliente}, tienes una notificación de tu turno para ${variables.servicio}.`;
         }

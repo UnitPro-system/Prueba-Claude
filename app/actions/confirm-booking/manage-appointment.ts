@@ -500,6 +500,32 @@ export async function cancelAppointment(appointmentId: string) {
 
     if (deleteError) throw deleteError
 
+    // --- NUEVO: 4.5. ENVIAR WHATSAPP DE CANCELACIÓN ---
+    // @ts-ignore
+    const wpToken = turno.negocios?.whatsapp_access_token;
+    if (wpToken && turno.cliente_telefono) {
+      try {
+        const fechaLegible = new Date(turno.fecha_inicio).toLocaleString('es-AR', {
+            timeZone: 'America/Argentina/Buenos_Aires',
+            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+
+        await sendWhatsAppNotification(
+            turno.cliente_telefono,
+            'cancellation',
+            {
+                cliente: turno.cliente_nombre,
+                servicio: turno.servicio,
+                fecha: fechaLegible
+            },
+            wpToken
+        );
+      } catch (wsError) {
+         // Capturamos el error para que si falla WhatsApp, no falle la cancelación en sí
+         console.error('Error enviando WhatsApp de cancelación:', wsError);
+      }
+    }
+
     // 5. Revalidar UI
     revalidatePath('/dashboard') 
     

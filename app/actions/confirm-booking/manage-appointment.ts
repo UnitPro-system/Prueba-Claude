@@ -548,7 +548,8 @@ export async function createManualAppointment(slug: string, bookingData: any) {
       fecha_inicio: bookingData.start,
       fecha_fin: bookingData.end,
       estado: 'confirmado',
-      google_event_id: event.data.id
+      google_event_id: event.data.id,
+      recordatorio_enviado: false
     })
 
     if (error) throw error

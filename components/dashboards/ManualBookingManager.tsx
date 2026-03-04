@@ -12,7 +12,8 @@ export default function ManualBookingManager({ slug, workers, services }: { slug
     startTime: '09:00',
     duration: '60',
     clientName: '',
-    clientPhone: '',
+    clientAreaCode: '',
+    clientLocalNumber: '',
     clientEmail: '',
     workerId: workers?.[0]?.id || '',
     service: services?.[0]?.name || ''
@@ -28,8 +29,11 @@ export default function ManualBookingManager({ slug, workers, services }: { slug
     
     const workerName = workers?.find(w => String(w.id) === String(formData.workerId))?.nombre || 'Profesional'
 
+    const numeroArmado = `+549${formData.clientAreaCode}${formData.clientLocalNumber}`;
+
     const res = await createManualAppointment(slug, {
       ...formData,
+      clientPhone: numeroArmado,
       start: start.toISOString(),
       end: end.toISOString(),
       workerName
@@ -37,7 +41,7 @@ export default function ManualBookingManager({ slug, workers, services }: { slug
 
     if (res.success) {
       alert('Turno agendado exitosamente.')
-      setFormData({ ...formData, clientName: '', clientPhone: '', clientEmail: '' })
+      setFormData({ ...formData, clientName: '',clientAreaCode: '', clientLocalNumber: '', clientEmail: '' })
     } else {
       alert('Error: ' + res.error)
     }
@@ -52,30 +56,56 @@ export default function ManualBookingManager({ slug, workers, services }: { slug
       </h3>
       <form onSubmit={handleSubmit} className="space-y-5"> {/* Aumenté el espaciado vertical */}
         
-        {/* FILA 1: DATOS CLIENTE (Ahora incluye Email) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-1">
+        {/* FILA 1: DATOS CLIENTE (Nombre y Email) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label>
             <input 
-              required placeholder="Nombre" className="w-full p-2.5 border rounded-xl bg-gray-50 text-sm"
+              required placeholder="Nombre y Apellido" className="w-full p-2.5 border rounded-xl bg-gray-50 text-sm"
               value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})}
             />
           </div>
-          <div className="md:col-span-1">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono</label>
-            <input 
-              placeholder="Ej: 11223344" className="w-full p-2.5 border rounded-xl bg-gray-50 text-sm"
-              value={formData.clientPhone} onChange={e => setFormData({...formData, clientPhone: e.target.value})}
-            />
-          </div>
-          {/* NUEVO CAMPO EMAIL */}
-          <div className="md:col-span-1">
+          <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
             <input 
               type="email" placeholder="cliente@mail.com" className="w-full p-2.5 border rounded-xl bg-gray-50 text-sm"
               value={formData.clientEmail} onChange={e => setFormData({...formData, clientEmail: e.target.value})}
             />
           </div>
+        </div>
+
+        {/* FILA NUEVA: TELÉFONO (Formato Landing) */}
+        <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Número de WhatsApp</label>
+            <div className="flex gap-2 items-center">
+                {/* PREFIJO FIJO */}
+                <div className="flex items-center justify-center px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 font-bold shrink-0 select-none text-sm">
+                    🇦🇷 +54 9
+                </div>
+                {/* CÓDIGO DE ÁREA */}
+                <input 
+                    required 
+                    type="tel"
+                    placeholder="Área (Ej: 11)" 
+                    className="w-[90px] p-2.5 border rounded-xl bg-gray-50 text-sm text-center font-medium" 
+                    value={formData.clientAreaCode}
+                    onChange={e => setFormData({...formData, clientAreaCode: e.target.value.replace(/\D/g, '')})}
+                    maxLength={4}
+                />
+                {/* RESTO DEL NÚMERO */}
+                <input 
+                    required 
+                    type="tel"
+                    placeholder="Número (Ej: 2345 6789)" 
+                    className="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-medium" 
+                    value={formData.clientLocalNumber}
+                    onChange={e => setFormData({...formData, clientLocalNumber: e.target.value.replace(/\D/g, '')})}
+                    maxLength={10}
+                />
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1.5 ml-1 leading-tight">
+                Ingresá el código de área <b>sin el 0</b> y el número <b>sin el 15</b>.
+            </p>
         </div>
 
         {/* FILA 2: FECHA Y HORA */}

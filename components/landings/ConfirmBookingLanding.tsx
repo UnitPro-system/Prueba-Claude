@@ -264,13 +264,27 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                 if (slotEnd > rangeClosingTime) continue;
 
                 // 5. Verificar colisión con Google Calendar (BusySlots)
-                const isBusy = busySlots.some((busy: any) => {
+                let overlappingCount = 0;
+                for (const busy of busySlots) {
                     const busyStart = new Date(busy.start);
                     const busyEnd = new Date(busy.end);
-                    return (slotStart < busyEnd && slotEnd > busyStart);
-                });
+                    // Contamos cuántos eventos reales caen en este bloque de tiempo
+                    if (slotStart < busyEnd && slotEnd > busyStart) {
+                        overlappingCount++;
+                    }
+                }
                 
-                if (!isBusy) {
+                // --- LÓGICA ESTRICTA DE CAPACIDAD ---
+                let capacity = 1; // Por defecto siempre es 1
+                const availabilityMode = negocio.config_web?.equipo?.availabilityMode || 'global';
+                
+                // Solo si el negocio trabaja por "boxes/profesionales independientes" evaluamos si este profesional puede atender a más de uno
+                if (availabilityMode === 'per_worker' && bookingData.worker?.allowSimultaneous) {
+                    capacity = bookingData.worker?.simultaneousCapacity || 2;
+                }
+                
+                // Si la cantidad de turnos ocupados es menor a la capacidad permitida, mostramos el horario
+                if (overlappingCount < capacity) {
                     slots.push({ time: timeString, available: true });
                 }
             }

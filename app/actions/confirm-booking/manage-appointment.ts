@@ -361,6 +361,7 @@ export async function markDepositPaid(turnoId: string) {
             const targetWorkerId = targetWorker ? String(targetWorker.id) : null;
 
             let capacity = 1;
+            // Solo miramos la capacidad del profesional si el negocio NO es de sala única
             if (availabilityMode === 'per_worker' && targetWorker?.allowSimultaneous) {
                 capacity = targetWorker.simultaneousCapacity || 2;
             }
@@ -369,24 +370,26 @@ export async function markDepositPaid(turnoId: string) {
             const events = conflictCheck.data.items || [];
             
             for (const existingEvent of events) {
+                // Ignoramos eventos transparentes o cancelados en Google Calendar
                 if (existingEvent.transparency === 'transparent' || existingEvent.status === 'cancelled') continue;
 
                 const shared = (existingEvent.extendedProperties?.shared as any) || {};
                 const eventWorkerId = shared['saas_worker_id'] ? String(shared['saas_worker_id']).trim() : null;
 
                 if (availabilityMode === 'global') {
-                    // En modo global, cualquier evento consume toda la capacidad de la sala
-                    overlappingCount += capacity; 
+                    // Si es SALA ÚNICA, cualquier evento que exista suma 1 a la ocupación, ignorando de quién sea
+                    overlappingCount += 1; 
                 } else {
-                    // Si el evento no tiene ID (bloqueo manual) o coincide con el profesional
+                    // Si es POR PROFESIONAL, sumamos 1 solo si el evento es de ESTE profesional 
+                    // (o si no tiene ID, lo que significa un bloqueo manual del calendario)
                     if (!eventWorkerId || (targetWorkerId && eventWorkerId === targetWorkerId)) {
-                        overlappingCount += 1; // <--- CAMBIADO: Sumamos 1 solo lugar ocupado
+                        overlappingCount += 1; 
                     }
                 }
             }
 
             if (overlappingCount >= capacity) {
-                throw new Error('⚠️ ¡CUIDADO! La capacidad de este horario se llenó mientras esperábamos el pago.');
+                throw new Error('⚠️ ¡CUIDADO! La capacidad de este horario se llenó mientras esperábamos el pago. Por favor, selecciona otro horario.');
             }
         }
 

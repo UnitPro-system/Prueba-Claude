@@ -361,9 +361,11 @@ export async function markDepositPaid(turnoId: string) {
             const targetWorkerId = targetWorker ? String(targetWorker.id) : null;
 
             let capacity = 1;
-            // Solo miramos la capacidad del profesional si el negocio NO es de sala única
-            if (availabilityMode === 'per_worker' && targetWorker?.allowSimultaneous) {
-                capacity = targetWorker.simultaneousCapacity || 2;
+            const isGlobal = availabilityMode === 'global' || availabilityMode === 'sala_unica';
+            const permiteSimultaneo = targetWorker?.allowSimultaneous === true || String(targetWorker?.allowSimultaneous) === 'true';
+
+            if (!isGlobal && permiteSimultaneo) {
+                capacity = Number(targetWorker?.simultaneousCapacity) || 2;
             }
 
             let overlappingCount = 0;

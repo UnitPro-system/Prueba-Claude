@@ -266,11 +266,23 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                 // 5. Verificar colisión con Google Calendar (BusySlots)
                 let overlappingCount = 0;
                 for (const busy of busySlots) {
-                    const busyStart = new Date(busy.start);
-                    const busyEnd = new Date(busy.end);
-                    // Contamos cuántos eventos reales caen en este bloque de tiempo
-                    if (slotStart < busyEnd && slotEnd > busyStart) {
-                        overlappingCount++;
+                    let capacity = 1; 
+                    const availabilityMode = negocio.config_web?.equipo?.availabilityMode || 'global';
+                    
+                    // Verificamos de forma segura si el modo NO es global (cubriendo cualquier palabra que use tu base de datos)
+                    const isGlobal = availabilityMode === 'global' || availabilityMode === 'sala_unica';
+                    
+                    // Verificamos si el profesional permite simultáneos (cubriendo booleanos y strings)
+                    const permiteSimultaneo = bookingData.worker?.allowSimultaneous === true || String(bookingData.worker?.allowSimultaneous) === 'true';
+                    
+                    // Si no es sala única y el profesional lo permite, le damos su capacidad real
+                    if (!isGlobal && permiteSimultaneo) {
+                        capacity = Number(bookingData.worker?.simultaneousCapacity) || 2;
+                    }
+                    
+                    // Si la cantidad de turnos ocupados es menor a la capacidad permitida, mostramos el horario
+                    if (overlappingCount < capacity) {
+                        slots.push({ time: timeString, available: true });
                     }
                 }
                 

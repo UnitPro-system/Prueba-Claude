@@ -46,6 +46,7 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{show: boolean, turnoId: string | null}>({ show: false, turnoId: null });
   const [priceInput, setPriceInput] = useState("");
+  const [durationInput, setDurationInput] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [filtroTrabajador, setFiltroTrabajador] = useState<string>("Todos");
 
@@ -221,9 +222,10 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
     window.location.href = `/api/google/auth?slug=${negocio.slug}`;
   };
 
-  const onPreConfirm = (id: string, precioBase: number | string = "") => {
+  const onPreConfirm = (id: string, precioBase: number | string = "", duracionBase: number | string = "") => {
       setConfirmModal({ show: true, turnoId: id });
       setPriceInput(precioBase ? String(precioBase) : ""); // Pre-cargamos el valor
+      setDurationInput(duracionBase ? String(duracionBase) : "");
   };
 
 
@@ -234,7 +236,8 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
       
       // CORRECCIÓN: Ahora pasamos el precio convertido a número
       const finalPrice = priceInput ? Number(priceInput) : 0;
-      const res = await approveAppointment(confirmModal.turnoId, finalPrice);
+      const finalDuration = durationInput ? Number(durationInput) : undefined;
+      const res = await approveAppointment(confirmModal.turnoId, finalPrice, finalDuration);
       
       if (!res.success) {
           alert("Error: " + res.error);
@@ -679,8 +682,12 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
                                             </button>
                                             {/* Abre el Modal de Precio. Al confirmar ahí, llama a approveAppointment */}
                                             <button 
-                                                onClick={() => onPreConfirm(t.id, t.precio)} // <--- NUEVO: Pasamos t.precio
-                                                className="flex-1 md:flex-none px-6 py-2 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all text-sm flex items-center justify-center gap-2"
+                                                onClick={() => {
+                                                    // Calculamos duración actual en minutos
+                                                    const dur = Math.round((new Date(t.fecha_fin).getTime() - new Date(t.fecha_inicio).getTime()) / 60000);
+                                                    onPreConfirm(t.id, t.precio_total || 0, dur);
+                                                }}
+                                                className="..."
                                             >
                                                 <Check size={16}/> Aceptar
                                             </button>
@@ -801,6 +808,21 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
                                 value={priceInput}
                                 onChange={(e) => setPriceInput(e.target.value)}
                             />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-zinc-500 uppercase mb-1 block">Duración Estimada (min)</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    placeholder="Ej: 60"
+                                    className="w-full p-3 border border-zinc-200 rounded-xl text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500 pr-12"
+                                    value={durationInput}
+                                    onChange={(e) => setDurationInput(e.target.value)}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-sm">min</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 mt-1">Este tiempo es el que ocupará en la agenda final.</p>
                         </div>
 
                         <div className="flex gap-3 pt-2">

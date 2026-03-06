@@ -167,7 +167,7 @@ export async function createAppointment(slug: string, bookingData: any) {
   }
 }
 
-export async function approveAppointment(appointmentId: string, finalPrice?: number) {
+export async function approveAppointment(appointmentId: string, finalPrice?: number, finalDuration?: number) {
   try {
     // 1. Obtener datos
     const { data: turno, error: tErr } = await supabase
@@ -178,6 +178,12 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
 
     if (tErr || !turno) throw new Error('Turno no encontrado')
     const negocio = turno.negocios
+
+    let finalEndDate = turno.fecha_fin;
+    if (finalDuration) {
+        const start = new Date(turno.fecha_inicio);
+        finalEndDate = new Date(start.getTime() + finalDuration * 60000).toISOString();
+    }
     
     // 2. Auth y Validación de Google Calendar
     if (!negocio?.google_refresh_token) {
@@ -219,7 +225,7 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
                     summary: `Turno: ${turno.cliente_nombre}`,
                     description: `Servicio: ${turno.servicio}\nTel: ${turno.cliente_telefono}\nCONFIRMADO`,
                     start: { dateTime: turno.fecha_inicio, timeZone: 'America/Argentina/Buenos_Aires' },
-                    end: { dateTime: turno.fecha_fin, timeZone: 'America/Argentina/Buenos_Aires' },
+                    end: { dateTime: finalEndDate, timeZone: 'America/Argentina/Buenos_Aires' },
                     attendees: turno.cliente_email ? [{ email: turno.cliente_email }] : [],
                     // AGREGAMOS LA ETIQUETA DEL PROFESIONAL AQUÍ
                     extendedProperties: { 
@@ -268,7 +274,9 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
             monto_senia: `$${depositAmount}`,
             link_pago: "", 
             alias: trabajadorElegido?.aliasCvu || '',
-            telefono_trabajador: trabajadorElegido?.telefono || ''
+            telefono_trabajador: trabajadorElegido?.telefono || '',
+            duracion: `${finalDuration || '60'} min`,
+            hora_fin: new Date(finalEndDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
         };
 
         // --- CANAL: WHATSAPP ---
@@ -317,7 +325,8 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
       .update({ 
           estado: nuevoEstado, 
           google_event_id: googleEventId, // Guardamos el ID del calendario aquí
-          precio_total: finalPrice || 0 
+          precio_total: finalPrice || 0,
+          fecha_fin: finalEndDate
       })
       .eq('id', appointmentId)
 

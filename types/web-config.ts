@@ -96,6 +96,7 @@ export interface WorkerItem {
   aliasCvu?: string;    // Alias/CVU/CBU del trabajador
   telefono?: string;    // Teléfono del trabajador
   instagram?: string;
+  schedule?: WeeklySchedule;
 }
 
 export interface TeamSection {
@@ -104,6 +105,7 @@ export interface TeamSection {
   subtitulo?: string;
   items: WorkerItem[];
   availabilityMode?: 'global' | 'per_worker';
+  scheduleType?: 'unified' | 'per_worker';
 }
 // Union Type para las secciones personalizadas
 export type CustomSection = AboutSection | GallerySection;

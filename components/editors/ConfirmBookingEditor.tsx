@@ -1198,6 +1198,25 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                                             </button>
                                         </div>
                                     </div>
+                                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 mb-4">
+                                        <label className="text-[10px] font-bold text-amber-800 uppercase block mb-2">Configuración de Horarios</label>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => updateConfigField('equipo', 'scheduleType', 'unified')}
+                                                className={`flex-1 py-2 px-2 text-xs border rounded-lg transition-all ${(!config.equipo.scheduleType || config.equipo.scheduleType === 'unified') ? 'bg-white border-amber-500 text-amber-700 font-bold shadow-sm' : 'bg-transparent border-transparent text-amber-400'}`}
+                                            >
+                                                Horario General
+                                                <span className="block text-[9px] font-normal opacity-70">Todos igual</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => updateConfigField('equipo', 'scheduleType', 'per_worker')}
+                                                className={`flex-1 py-2 px-2 text-xs border rounded-lg transition-all ${config.equipo.scheduleType === 'per_worker' ? 'bg-white border-amber-500 text-amber-700 font-bold shadow-sm' : 'bg-transparent border-transparent text-amber-400'}`}
+                                            >
+                                                Horarios Individuales
+                                                <span className="block text-[9px] font-normal opacity-70">Cada uno el suyo</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <input 
                                         value={config.equipo.titulo} 
                                         onChange={(e) => updateConfigField('equipo', 'titulo', e.target.value)} 
@@ -1228,6 +1247,28 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                                                     <div className="w-12 h-12 shrink-0 bg-zinc-100 rounded-full overflow-hidden">
                                                         {item.imagenUrl ? <img src={item.imagenUrl} className="w-full h-full object-cover"/> : <Users size={24} className="m-3 text-zinc-300"/>}
                                                     </div>
+                                                    {config.equipo.scheduleType === 'per_worker' && (
+                                                        <div className="mt-3 pt-3 border-t border-zinc-100">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const isEditing = config.equipo._editingScheduleId === item.id;
+                                                                    updateConfigField('equipo', '_editingScheduleId', isEditing ? null : item.id);
+                                                                }}
+                                                                className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-bold flex items-center justify-center gap-2"
+                                                            >
+                                                                <Clock size={14}/> {config.equipo._editingScheduleId === item.id ? "Cerrar Horarios" : "Configurar Horario Particular"}
+                                                            </button>
+                                                            
+                                                            {config.equipo._editingScheduleId === item.id && (
+                                                                <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                                                                    {/* Aquí puedes replicar el componente de WeeklySchedule 
+                                                                        pero apuntando a updateArrayItem('equipo', i, 'schedule', ...) */}
+                                                                    <p className="text-[10px] text-zinc-400 italic">Configura los días y turnos específicos para {item.nombre}</p>
+                                                                    {/* ... (Ver nota abajo sobre reutilización de la UI de Agenda) */}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <div className="space-y-2 flex-1">
                                                         <input 
                                                             value={item.nombre} 

@@ -204,6 +204,12 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   const generateTimeSlots = () => {
     // 1. Obtener fecha y día de la semana de forma segura
     if (!bookingData.date) return [];
+
+    let schedule = negocio.config_web?.schedule || {};
+
+    if (negocio.config_web?.equipo?.scheduleType === 'per_worker' && bookingData.worker?.schedule) {
+        schedule = bookingData.worker.schedule;
+    }
     
     const [year, month, day] = bookingData.date.split('-').map(Number);
     // Creamos la fecha localmente para obtener el día correcto (0-6)
@@ -211,7 +217,6 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
     const dayOfWeek = String(dateObj.getDay()); // "0" = Domingo, "1" = Lunes...
 
     // 2. Obtener configuración del día
-    const schedule = negocio.config_web?.schedule || {};
     const dayConfig = schedule[dayOfWeek];
 
     // Variables para definir apertura y cierre

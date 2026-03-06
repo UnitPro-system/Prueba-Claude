@@ -79,18 +79,17 @@ export default function LoginPage() {
          <div className="bg-white/60 backdrop-blur-md p-10 rounded-[2.5rem] shadow-xl w-full max-w-md border border-neutral-300/50">
            <div className="text-center mb-10">
              <div className="flex items-center justify-center gap-2 font-bold text-3xl tracking-tighter mb-4 text-neutral-900">
-              <div className="w-12 h-12 bg-[#4c6618] rounded-2xl flex items-center justify-center shadow-lg shadow-[#4c6618]/20 overflow-hidden">
-                <Image 
-                  src="/logo.png" // Ruta de tu imagen en la carpeta public
-                  alt="UnitPro Logo"
-                  width={28} 
-                  height={28}
-                  className="object-contain"
-                />
+                <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
+                  <Image 
+                    src="/logo.png" 
+                    alt="UnitPro Logo"
+                    width={48} // Aumentado a 48 para ocupar todo el contenedor (w-12)
+                    height={48}
+                    className="object-contain"
+                  />
+                </div>
+                UnitPro
               </div>
-              UnitPro
-            </div>
-             <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Bienvenido</h1>
              <p className="text-neutral-600 font-medium mt-1">Accede a tu panel de gestión</p>
            </div>
 

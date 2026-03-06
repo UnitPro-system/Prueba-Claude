@@ -199,6 +199,55 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
 
     // 3. Determinar flujo
     const configWeb = negocio.config_web || {};
+    const conflictCheck = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: turno.fecha_inicio, 
+        timeMax: finalEndDate, 
+        singleEvents: true,
+        timeZone: 'America/Argentina/Buenos_Aires'
+    });
+
+    if (conflictCheck.data.items) {
+        const availabilityMode = configWeb.equipo?.availabilityMode || 'global';
+        
+        // Identificar al profesional
+        const serviceString = turno.servicio || "";
+        const parts = serviceString.split(" - ");
+        const workerName = parts.length > 1 ? parts[parts.length - 1] : null;
+        const targetWorker = configWeb.equipo?.items?.find((w: any) => w.nombre === workerName);
+        const targetWorkerId = targetWorker ? String(targetWorker.id) : null;
+
+        let capacity = 1;
+        const isGlobal = availabilityMode === 'global' || availabilityMode === 'sala_unica';
+        const permiteSimultaneo = targetWorker?.allowSimultaneous === true || String(targetWorker?.allowSimultaneous) === 'true';
+
+        if (!isGlobal && permiteSimultaneo) {
+            capacity = Number(targetWorker?.simultaneousCapacity) || 2;
+        }
+
+        let overlappingCount = 0;
+        const events = conflictCheck.data.items || [];
+        
+        for (const existingEvent of events) {
+            if (existingEvent.transparency === 'transparent' || existingEvent.status === 'cancelled') continue;
+
+            const shared = (existingEvent.extendedProperties?.shared as any) || {};
+            const eventWorkerId = shared['saas_worker_id'] ? String(shared['saas_worker_id']).trim() : null;
+
+            if (availabilityMode === 'global') {
+                overlappingCount += 1; 
+            } else {
+                if (!eventWorkerId || (targetWorkerId && eventWorkerId === targetWorkerId)) {
+                    overlappingCount += 1; 
+                }
+            }
+        }
+
+        // Si choca con otro turno, lanzamos el error ANTES de avanzar
+        if (overlappingCount >= capacity) {
+            throw new Error('⚠️ No puedes confirmar: La duración ingresada pisa otro turno existente o el horario ya fue ocupado en Calendar.');
+        }
+    }
     const teamConfig = configWeb.equipo || {};
     const bookingConfig = configWeb.booking || { requestDeposit: false, depositPercentage: 50 };
     

@@ -51,7 +51,7 @@ export default function RecoverPasswordPage() {
             <input 
               type="email"
               required
-              className="w-full pl-10 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-100 outline-none"
+              className="w-full pl-10 p-2.5 bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-zinc-100 outline-none"
               placeholder="tu@email.com"
               onChange={(e) => setEmail(e.target.value)}
             />

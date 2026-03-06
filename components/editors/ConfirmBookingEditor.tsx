@@ -117,6 +117,77 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  const renderScheduleInputs = (currentSchedule: any, onUpdate: (newSched: any) => void) => {
+    return ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].map((dayName, index) => {
+        const dayKey = String(index);
+        const dayConfig = currentSchedule?.[dayKey] || { isOpen: false, ranges: [{ start: "09:00", end: "18:00" }] };
+
+        const updateDay = (updates: any) => {
+            onUpdate({ ...currentSchedule, [dayKey]: { ...dayConfig, ...updates } });
+        };
+
+        return (
+            <div key={dayKey} className="flex flex-col gap-2 text-xs bg-zinc-50 p-2 rounded-lg border border-zinc-200">
+                <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={dayConfig.isOpen} 
+                            onChange={(e) => updateDay({ isOpen: e.target.checked })} 
+                            className="rounded text-indigo-600 focus:ring-indigo-500 border-zinc-300" 
+                        />
+                        <span className={dayConfig.isOpen ? "font-bold text-zinc-700" : "text-zinc-400"}>{dayName}</span>
+                    </label>
+                    {dayConfig.isOpen && (dayConfig.ranges?.length || 0) < 2 && (
+                        <button 
+                            onClick={() => updateDay({ ranges: [...(dayConfig.ranges || []), { start: "16:00", end: "20:00" }] })} 
+                            className="text-[10px] text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded border border-indigo-100 font-medium"
+                        >
+                            + Turno
+                        </button>
+                    )}
+                </div>
+                {dayConfig.isOpen ? (
+                    <div className="space-y-2 pl-6">
+                        {dayConfig.ranges?.map((range: any, rIndex: number) => (
+                            <div key={rIndex} className="flex items-center gap-1 animate-in fade-in">
+                                <input 
+                                    type="time" 
+                                    value={range.start} 
+                                    onChange={(e) => {
+                                        const newRanges = [...dayConfig.ranges];
+                                        newRanges[rIndex].start = e.target.value;
+                                        updateDay({ ranges: newRanges });
+                                    }} 
+                                    className="p-1.5 border border-zinc-300 rounded-md w-full bg-white text-zinc-700 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                />
+                                <span className="text-zinc-400 font-bold">-</span>
+                                <input 
+                                    type="time" 
+                                    value={range.end} 
+                                    onChange={(e) => {
+                                        const newRanges = [...dayConfig.ranges];
+                                        newRanges[rIndex].end = e.target.value;
+                                        updateDay({ ranges: newRanges });
+                                    }} 
+                                    className="p-1.5 border border-zinc-300 rounded-md w-full bg-white text-zinc-700 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                />
+                                {dayConfig.ranges.length > 1 && (
+                                    <button onClick={() => updateDay({ ranges: dayConfig.ranges.filter((_: any, i: number) => i !== rIndex) })} className="text-zinc-400 hover:text-red-500 p-1">
+                                        <Trash2 size={12}/>
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="pl-6 text-zinc-400 italic text-[10px] uppercase tracking-wide">Cerrado</div>
+                )}
+            </div>
+        );
+    });
+};
 
   // ESCUCHAR CLICS DESDE EL IFRAME
   useEffect(() => {
@@ -445,114 +516,71 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                         <Phone size={14} className="absolute left-2.5 top-2.5 text-zinc-400"/>
                     </div>
                 </div>
-                {/* BLOQUE DE CONFIGURACIÓN DE AGENDA (Nuevo) */}
+                {/* BLOQUE DE CONFIGURACIÓN DE AGENDA (Centralizado) */}
                 <div className="pt-4 border-t border-zinc-100 mt-4">
                     <label className="text-[11px] font-bold text-zinc-400 uppercase mb-3 block flex items-center gap-2">
                         <Clock size={12}/> Configuración de Agenda
                     </label>
                     
-                    <div className="space-y-2">
-                        {["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].map((dayName, index) => {
-                            const dayKey = String(index);
-                            // Obtenemos la config actual o usamos un fallback seguro
-                            const dayConfig = config.schedule?.[dayKey] || { isOpen: false, ranges: [{ start: "09:00", end: "18:00" }] };
-                            const updateRange = (rangeIndex: number, field: 'start' | 'end', value: string) => {
-                                const newRanges = [...(dayConfig.ranges || [])];
-                                newRanges[rangeIndex] = { ...newRanges[rangeIndex], [field]: value };
-                                
-                                const newSchedule = { 
-                                    ...(config.schedule || DEFAULT_CONFIG.schedule), 
-                                    [dayKey]: { ...dayConfig, ranges: newRanges } 
-                                };
-                                updateConfigField('root', 'schedule', newSchedule);
-                            };
-
-                            // Función para agregar un turno extra
-                            const addRange = () => {
-                                const newRanges = [...(dayConfig.ranges || []), { start: "16:00", end: "20:00" }];
-                                const newSchedule = { 
-                                    ...(config.schedule || DEFAULT_CONFIG.schedule), 
-                                    [dayKey]: { ...dayConfig, ranges: newRanges } 
-                                };
-                                updateConfigField('root', 'schedule', newSchedule);
-                            };
-
-                            // Función para quitar un turno
-                            const removeRange = (rangeIndex: number) => {
-                                const newRanges = dayConfig.ranges.filter((_: any, i: number) => i !== rangeIndex);
-                                const newSchedule = { 
-                                    ...(config.schedule || DEFAULT_CONFIG.schedule), 
-                                    [dayKey]: { ...dayConfig, ranges: newRanges } 
-                                };
-                                updateConfigField('root', 'schedule', newSchedule);
-                            };
-                            return (
-                                <div key={dayKey} className="flex flex-col gap-2 text-xs bg-zinc-50 p-2 rounded-lg border border-zinc-200">
-                                    
-                                    {/* Cabecera del día + Checkbox Activo */}
-                                    <div className="flex items-center justify-between">
-                                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={dayConfig.isOpen}
-                                                onChange={(e) => {
-                                                    const newSchedule = { 
-                                                        ...(config.schedule || DEFAULT_CONFIG.schedule), 
-                                                        [dayKey]: { ...dayConfig, isOpen: e.target.checked } 
-                                                    };
-                                                    updateConfigField('root', 'schedule', newSchedule);
-                                                }}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500 border-zinc-300"
-                                            />
-                                            <span className={dayConfig.isOpen ? "font-bold text-zinc-700" : "text-zinc-400"}>
-                                                {dayName}
-                                            </span>
-                                        </label>
-                                        
-                                        {/* Botón para agregar turno (solo si está abierto y tiene menos de 2 turnos) */}
-                                        {dayConfig.isOpen && (dayConfig.ranges?.length || 0) < 2 && (
-                                            <button onClick={addRange} className="text-[10px] text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded border border-indigo-100 font-medium">
-                                                + Turno
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* Renderizado de Rangos (Solo si está abierto) */}
-                                    {dayConfig.isOpen ? (
-                                        <div className="space-y-2 pl-6">
-                                            {dayConfig.ranges?.map((range: any, rIndex: number) => (
-                                                <div key={rIndex} className="flex items-center gap-1 animate-in fade-in">
-                                                    <input 
-                                                        type="time" 
-                                                        value={range.start} 
-                                                        onChange={(e) => updateRange(rIndex, 'start', e.target.value)}
-                                                        className="p-1.5 border border-zinc-300 rounded-md w-full bg-white text-zinc-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    />
-                                                    <span className="text-zinc-400 font-bold">-</span>
-                                                    <input 
-                                                        type="time" 
-                                                        value={range.end}
-                                                        onChange={(e) => updateRange(rIndex, 'end', e.target.value)}
-                                                        className="p-1.5 border border-zinc-300 rounded-md w-full bg-white text-zinc-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    />
-                                                    {/* Botón borrar rango (si hay más de uno) */}
-                                                    {dayConfig.ranges.length > 1 && (
-                                                        <button onClick={() => removeRange(rIndex)} className="text-zinc-400 hover:text-red-500 p-1">
-                                                            <Trash2 size={12}/>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="pl-6">
-                                            <span className="text-zinc-400 italic text-[10px] uppercase tracking-wide">Cerrado</span>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                    {/* 1. Selector de Modo: General vs Individual */}
+                    <div className="flex bg-zinc-100 p-1 rounded-xl mb-4 border border-zinc-200">
+                        <button 
+                            onClick={() => updateConfigField('equipo', 'scheduleType', 'unified')}
+                            className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${(!config.equipo?.scheduleType || config.equipo.scheduleType === 'unified') ? 'bg-white shadow text-indigo-600' : 'text-zinc-500'}`}
+                        >
+                            Horario General
+                        </button>
+                        <button 
+                            onClick={() => updateConfigField('equipo', 'scheduleType', 'per_worker')}
+                            className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${config.equipo?.scheduleType === 'per_worker' ? 'bg-white shadow text-indigo-600' : 'text-zinc-500'}`}
+                        >
+                            Por Trabajador
+                        </button>
                     </div>
+
+                    {/* 2. Selector de Trabajador (Solo aparece en modo Individual) */}
+                    {config.equipo?.scheduleType === 'per_worker' && (
+                        <div className="mb-4 animate-in fade-in slide-in-from-top-1">
+                            <label className="text-[10px] font-bold text-indigo-500 uppercase mb-1 block">Seleccionar Profesional</label>
+                            <select 
+                                value={selectedWorkerId || ""} 
+                                onChange={(e) => setSelectedWorkerId(e.target.value)}
+                                className="w-full p-2.5 border border-indigo-200 rounded-lg text-sm bg-indigo-50/30 outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">-- Elige un profesional --</option>
+                                {config.equipo?.items?.map((w: any) => (
+                                    <option key={w.id} value={w.id}>{w.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* 3. Renderizado Dinámico de Horarios */}
+                    <div className="space-y-2">
+                        {config.equipo?.scheduleType === 'per_worker' ? (
+                            selectedWorkerId ? (
+                                // Si hay trabajador elegido, editamos su schedule particular
+                                renderScheduleInputs(
+                                    config.equipo.items.find((w: any) => w.id === selectedWorkerId)?.schedule || config.schedule,
+                                    (newSched) => {
+                                        const idx = config.equipo.items.findIndex((w: any) => w.id === selectedWorkerId);
+                                        updateArrayItem('equipo', idx, 'schedule', newSched);
+                                    }
+                                )
+                            ) : (
+                                <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-xs">
+                                    Selecciona un profesional arriba para ver y editar su horario
+                                </div>
+                            )
+                        ) : (
+                            // Modo General: Editamos el schedule raíz del negocio
+                            renderScheduleInputs(
+                                config.schedule, 
+                                (newSched) => updateConfigField('root', 'schedule', newSched)
+                            )
+                        )}
+                    </div>
+
                     <p className="text-[10px] text-zinc-400 mt-2">
                         * Estos horarios controlan la disponibilidad real del calendario.
                     </p>
@@ -1198,25 +1226,7 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 mb-4">
-                                        <label className="text-[10px] font-bold text-amber-800 uppercase block mb-2">Configuración de Horarios</label>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => updateConfigField('equipo', 'scheduleType', 'unified')}
-                                                className={`flex-1 py-2 px-2 text-xs border rounded-lg transition-all ${(!config.equipo.scheduleType || config.equipo.scheduleType === 'unified') ? 'bg-white border-amber-500 text-amber-700 font-bold shadow-sm' : 'bg-transparent border-transparent text-amber-400'}`}
-                                            >
-                                                Horario General
-                                                <span className="block text-[9px] font-normal opacity-70">Todos igual</span>
-                                            </button>
-                                            <button 
-                                                onClick={() => updateConfigField('equipo', 'scheduleType', 'per_worker')}
-                                                className={`flex-1 py-2 px-2 text-xs border rounded-lg transition-all ${config.equipo.scheduleType === 'per_worker' ? 'bg-white border-amber-500 text-amber-700 font-bold shadow-sm' : 'bg-transparent border-transparent text-amber-400'}`}
-                                            >
-                                                Horarios Individuales
-                                                <span className="block text-[9px] font-normal opacity-70">Cada uno el suyo</span>
-                                            </button>
-                                        </div>
-                                    </div>
+                                    
                                     <input 
                                         value={config.equipo.titulo} 
                                         onChange={(e) => updateConfigField('equipo', 'titulo', e.target.value)} 
@@ -1247,28 +1257,7 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
                                                     <div className="w-12 h-12 shrink-0 bg-zinc-100 rounded-full overflow-hidden">
                                                         {item.imagenUrl ? <img src={item.imagenUrl} className="w-full h-full object-cover"/> : <Users size={24} className="m-3 text-zinc-300"/>}
                                                     </div>
-                                                    {config.equipo.scheduleType === 'per_worker' && (
-                                                        <div className="mt-3 pt-3 border-t border-zinc-100">
-                                                            <button 
-                                                                onClick={() => {
-                                                                    const isEditing = config.equipo._editingScheduleId === item.id;
-                                                                    updateConfigField('equipo', '_editingScheduleId', isEditing ? null : item.id);
-                                                                }}
-                                                                className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-bold flex items-center justify-center gap-2"
-                                                            >
-                                                                <Clock size={14}/> {config.equipo._editingScheduleId === item.id ? "Cerrar Horarios" : "Configurar Horario Particular"}
-                                                            </button>
-                                                            
-                                                            {config.equipo._editingScheduleId === item.id && (
-                                                                <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-                                                                    {/* Aquí puedes replicar el componente de WeeklySchedule 
-                                                                        pero apuntando a updateArrayItem('equipo', i, 'schedule', ...) */}
-                                                                    <p className="text-[10px] text-zinc-400 italic">Configura los días y turnos específicos para {item.nombre}</p>
-                                                                    {/* ... (Ver nota abajo sobre reutilización de la UI de Agenda) */}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                    
                                                     <div className="space-y-2 flex-1">
                                                         <input 
                                                             value={item.nombre} 

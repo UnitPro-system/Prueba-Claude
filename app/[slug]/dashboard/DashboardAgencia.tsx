@@ -253,7 +253,7 @@ export default function DashboardAgencia() {
       {/* HEADER */}
       <header className="bg-[#eee9dd]/50 backdrop-blur-md border-b border-slate-200 px-6 lg:px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-md shadow-indigo-200">
+            <div className="bg-[#4c6618] text-white p-2 rounded-lg shadow-md shadow-[#4c6618]/20">
               <ShieldCheck size={24}/>
             </div>
             <div>
@@ -278,7 +278,7 @@ export default function DashboardAgencia() {
             </div>
             <button 
               onClick={() => setShowModal(true)} 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5"
+              className="bg-[#4c6618] hover:bg-[#3a4e12] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-[#4c6618]/30 hover:-translate-y-0.5"
             >
                 <Plus size={20}/> Nuevo Cliente
             </button>
@@ -316,7 +316,7 @@ export default function DashboardAgencia() {
                             <span className="text-[10px] font-bold text-slate-500 uppercase">Acceso al Editor</span>
                             <button 
                                 onClick={() => toggleEditorAccess(cliente.id, cliente.editor_enabled)}
-                                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${cliente.editor_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${cliente.editor_enabled ? 'bg-[#4c6618]' : 'bg-slate-300'}`}
                             >
                                 <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${cliente.editor_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
@@ -329,7 +329,7 @@ export default function DashboardAgencia() {
                     </div>
                     
                     <div className="flex gap-3 mt-auto pt-4 border-t border-slate-100">
-                        <button onClick={() => setEditingClient(cliente)} className="flex-1 text-center py-2.5 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 transition-colors border border-indigo-100">
+                        <button onClick={() => setEditingClient(cliente)} className="flex-1 text-center py-2.5 bg-[#4c6618]/10 hover:bg-[#4c6618]/20 rounded-xl text-xs font-bold text-[#4c6618] flex items-center justify-center gap-2 transition-colors border border-[#4c6618]/20">
                             <Palette size={14}/> Diseñar
                         </button>
                         {/* LÓGICA DE URL: Si tiene custom_domain, úsalo con https. Si no, usa el slug relativo */}
@@ -363,14 +363,14 @@ export default function DashboardAgencia() {
                             <button 
                                 type="button"
                                 onClick={() => setNewClientCategory('project_portfolio')}
-                                className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${newClientCategory === 'project_portfolio' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-200' : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white'}`}
+                                className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${newClientCategory === 'project_portfolio' ? 'border-[#4c6618] bg-[#4c6618]/10 text-[#4c6618] ring-2 ring-[#4c6618]/20' : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white'}`}
                             >
                                 <span></span> Project / Portfolio
                             </button>
                             <button 
                                 type="button"
                                 onClick={() => setNewClientCategory('confirm_booking')}
-                                className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${newClientCategory === 'confirm_booking' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-200' : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white'}`}
+                                className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${newClientCategory === 'confirm_booking' ? 'border-[#4c6618] bg-[#4c6618]/10 text-[#4c6618] ring-2 ring-[#4c6618]/20' : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white'}`}
                             >
                                 <span></span> Citas / Servicios 
                             </button>
@@ -381,15 +381,15 @@ export default function DashboardAgencia() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nombre Negocio</label>
-                            <input required placeholder="Ej: Barbería Vintage" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setNewClientData({...newClientData, nombre: e.target.value})}/>
+                            <input required placeholder="Ej: Barbería Vintage" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4c6618] outline-none" onChange={e => setNewClientData({...newClientData, nombre: e.target.value})}/>
                         </div>
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Email (Login)</label>
-                            <input required type="email" placeholder="cliente@gmail.com" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setNewClientData({...newClientData, email: e.target.value})}/>
+                            <input required type="email" placeholder="cliente@gmail.com" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4c6618] outline-none" onChange={e => setNewClientData({...newClientData, email: e.target.value})}/>
                         </div>
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Contraseña</label>
-                            <input required type="password" placeholder="******" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setNewClientData({...newClientData, password: e.target.value})}/>
+                            <input required type="password" placeholder="******" className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4c6618] outline-none" onChange={e => setNewClientData({...newClientData, password: e.target.value})}/>
                         </div>
                     </div>
 
@@ -482,7 +482,7 @@ export default function DashboardAgencia() {
                             type="submit" 
                             disabled={creating || !newClientCategory} // Deshabilitar si está creando o si no hay categoría
                             className={`flex-1 py-3 font-bold rounded-xl flex justify-center items-center gap-2 transition-all ${
-                                !newClientCategory ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200'
+                                !newClientCategory ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#4c6618] hover:bg-[#3a4e12] shadow-lg shadow-[#4c6618]/20'
                             } text-white`}
                         >
                             {creating ? <Loader2 className="animate-spin"/> : "Crear Cuenta"}

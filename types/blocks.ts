@@ -1,8 +1,9 @@
 // types/blocks.ts
 // Tipos del sistema de bloques modular de UnitPro
 
+import type { ComponentType } from "react"; // 🆕 Fase 1
+
 // ─── IDs de bloques válidos ───────────────────────────────────────────────────
-// Agregar acá cada vez que se cree un bloque nuevo
 export type BlockId =
   | 'landing'
   | 'calendar'
@@ -18,19 +19,34 @@ export type BlockId =
 // ─── Categorías de bloques ────────────────────────────────────────────────────
 export type BlockCategory = 'core' | 'services' | 'commerce' | 'marketing' | 'future';
 
+// 🆕 Fase 1 — Props estándar que recibe cada SectionComponent en la landing pública
+export interface BlockSectionProps<
+  TConfig extends Record<string, unknown> = Record<string, unknown>
+> {
+  negocio: any; // usa tu tipo Negocio real si lo tenés centralizado
+  config: TConfig;
+}
+
 // ─── Definición de un bloque en el registry ──────────────────────────────────
 export interface BlockDefinition {
   id: BlockId;
   name: string;
   description: string;
   category: BlockCategory;
-  priceARS: number;          // Precio mensual en ARS (0 = gratis)
-  agencyPriceARS: number;    // Precio para agencias (~30% menos)
-  hasPublicView: boolean;    // ¿Tiene vista pública en la web del negocio?
-  hasAdminView: boolean;     // ¿Tiene panel en el dashboard?
-  dependencies: BlockId[];   // Bloques que deben estar activos primero
-  icon: string;              // Nombre del ícono de lucide-react
-  available: boolean;        // false = "próximamente", no se puede activar
+  priceARS: number;
+  agencyPriceARS: number;
+  hasPublicView: boolean;
+  hasAdminView: boolean;
+  dependencies: BlockId[];
+  icon: string;
+  available: boolean;
+
+  /**
+   * 🆕 Fase 1 — Componente que se renderiza en la landing pública (LandingModular).
+   * Opcional: si no está definido, el bloque se ignora en la landing aunque esté activo.
+   * Puede ser un Server Component o un Client Component.
+   */
+  SectionComponent?: ComponentType<BlockSectionProps<any>>;
 }
 
 // ─── Registro de un bloque activo en la DB (tabla tenant_blocks) ──────────────
@@ -45,13 +61,11 @@ export interface TenantBlock {
 }
 
 // ─── Estado de bloques de un negocio (lo que usa el UI) ──────────────────────
-// Combina la definición del registry con el estado en la DB
 export interface BlockStatus {
   definition: BlockDefinition;
   isActive: boolean;
   activatedAt: string | null;
   config: Record<string, unknown>;
-  // Precio efectivo: price_override si existe, sino el del registry
   effectivePriceARS: number;
 }
 
@@ -59,5 +73,5 @@ export interface BlockStatus {
 export interface BlocksBillingSummary {
   blocks: BlockStatus[];
   totalARS: number;
-  isAgency: boolean; // Si true, usa precios de agencia
+  isAgency: boolean;
 }

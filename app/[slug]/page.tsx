@@ -23,7 +23,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
     if (negocioDominio) {
       // 🆕 Fase 1: bifurcación por system
-      if (negocioDominio.system === true) {
+      if (negocioDominio.system === 'modular') {
         return <LandingModular negocio={negocioDominio} />;
       }
       return <LandingCliente initialData={negocioDominio} />;
@@ -41,7 +41,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   if (negocioSlug) {
     // 🆕 Fase 1: bifurcación por system
-    if (negocioSlug.system === true) {
+    if (negocioSlug.system === 'modular') {
       return <LandingModular negocio={negocioSlug} />;
     }
     return <LandingCliente initialData={negocioSlug} />;

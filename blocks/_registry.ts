@@ -1,10 +1,14 @@
 // blocks/_registry.ts
 // Registro central de todos los bloques de UnitPro.
+// Este archivo es la fuente de verdad de qué bloques existen,
+// cuánto cuestan y qué hacen. NO depende de Supabase.
 
 import { BlockDefinition, BlockId } from '@/types/blocks';
-
-// 🆕 Fase 1 — importamos la sección pública del bloque de reservas
-import CalendarSection from '@/blocks/confirm_booking/Section';
+import HeroSection     from '@/blocks/landing/public/HeroSection';
+import CalendarSection from '@/blocks/calendar/public/CalendarSection';
+import GallerySection  from '@/blocks/gallery/public/GallerySection';
+import ReviewsSection  from '@/blocks/reviews/public/ReviewsSection';
+import ContactSection  from '@/blocks/crm/public/ContactSection';
 
 export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
 
@@ -21,7 +25,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'Globe',
     available: true,
-    // landing no usa SectionComponent — es la raíz de LandingModular
+    SectionComponent: HeroSection,
   },
 
   // ─── SERVICIOS ────────────────────────────────────────────────────────────
@@ -37,7 +41,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'CalendarDays',
     available: true,
-    SectionComponent: CalendarSection, // 🆕 Fase 1
+    SectionComponent: CalendarSection,
   },
 
   crm: {
@@ -47,12 +51,12 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     category: 'services',
     priceARS: 1500,
     agencyPriceARS: 1050,
-    hasPublicView: true,
+    hasPublicView: true,   // Formulario de contacto público
     hasAdminView: true,
     dependencies: [],
     icon: 'Users',
     available: true,
-    // SectionComponent: pendiente Fase 2
+    SectionComponent: ContactSection,
   },
 
   gallery: {
@@ -67,7 +71,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'Images',
     available: true,
-    // SectionComponent: pendiente Fase 2
+    SectionComponent: GallerySection,
   },
 
   reviews: {
@@ -82,7 +86,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'Star',
     available: true,
-    // SectionComponent: pendiente Fase 2
+    SectionComponent: ReviewsSection,
   },
 
   analytics: {
@@ -97,7 +101,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'BarChart2',
     available: true,
-    // Sin SectionComponent — solo vista admin
   },
 
   payments: {
@@ -112,7 +115,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'CreditCard',
     available: true,
-    // SectionComponent: pendiente Fase 3
   },
 
   chat: {
@@ -127,7 +129,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     dependencies: [],
     icon: 'MessageCircle',
     available: true,
-    // SectionComponent: pendiente Fase 2
   },
 
   // ─── COMMERCE (futuros) ───────────────────────────────────────────────────
@@ -142,7 +143,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     hasAdminView: true,
     dependencies: ['payments'],
     icon: 'ShoppingBag',
-    available: false,
+    available: false, // Próximamente — Fase 6
   },
 
   academy: {
@@ -156,35 +157,41 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     hasAdminView: true,
     dependencies: ['payments'],
     icon: 'GraduationCap',
-    available: false,
+    available: false, // Próximamente — Fase 7
   },
 };
 
-// ─── Helpers del registry (sin cambios) ──────────────────────────────────────
+// ─── Helpers del registry ─────────────────────────────────────────────────────
 
+/** Todos los bloques disponibles (available: true) */
 export const AVAILABLE_BLOCKS = Object.values(BLOCKS_REGISTRY).filter(b => b.available);
 
+/** Bloques disponibles agrupados por categoría */
 export const BLOCKS_BY_CATEGORY = AVAILABLE_BLOCKS.reduce((acc, block) => {
   if (!acc[block.category]) acc[block.category] = [];
   acc[block.category].push(block);
   return acc;
 }, {} as Record<string, BlockDefinition[]>);
 
+/** Obtener la definición de un bloque por ID */
 export function getBlockDefinition(blockId: BlockId): BlockDefinition {
   return BLOCKS_REGISTRY[blockId];
 }
 
+/** Calcular precio efectivo (con o sin precio agencia) */
 export function getBlockPrice(blockId: BlockId, isAgency = false): number {
   const block = BLOCKS_REGISTRY[blockId];
   return isAgency ? block.agencyPriceARS : block.priceARS;
 }
 
+/** Calcular total mensual de una lista de bloques activos */
 export function calculateMonthlyTotal(activeBlockIds: BlockId[], isAgency = false): number {
   return activeBlockIds.reduce((total, id) => {
     return total + getBlockPrice(id, isAgency);
   }, 0);
 }
 
+/** Verificar si las dependencias de un bloque están cubiertas */
 export function checkDependencies(
   blockId: BlockId,
   activeBlockIds: BlockId[]

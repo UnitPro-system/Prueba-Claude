@@ -1,59 +1,61 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+// app/[slug]/dashboard/DashboardCliente.tsx
+// Factory simplificado: solo ConfirmBooking es el tipo activo.
+// Los otros tipos (service_booking, project_portfolio) quedan
+// como legacy pero no se crean negocios nuevos con ellos.
+
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
+const ConfirmBookingDashboard = dynamic(
+  () => import("@/components/dashboards/ConfirmBookingDashboard"),
+  { loading: () => <LoadingScreen /> }
+);
 
-// 1. CARGA DINÁMICA (Igual que en LandingCliente)
-const ServiceBookingDashboard = dynamic(() => import("@/components/dashboards/ServiceBookingDashboard"), {
-  loading: () => <LoadingScreen />,
-});
+// Legacy — solo para negocios existentes, no se crean nuevos
+const ServiceBookingDashboard = dynamic(
+  () => import("@/components/dashboards/ServiceBookingDashboard"),
+  { loading: () => <LoadingScreen /> }
+);
+const ProjectDashboard = dynamic(
+  () => import("@/components/dashboards/ProjectDashboard"),
+  { loading: () => <LoadingScreen /> }
+);
 
-const ProjectDashboard = dynamic(() => import("@/components/dashboards/ProjectDashboard"), {
-  loading: () => <LoadingScreen />,
-});
-
-const ConfirmBookingDashboard = dynamic(() => import("@/components/dashboards/ConfirmBookingDashboard"), {
-  loading: () => <LoadingScreen />,
-});
-
-export default function DashboardFactory() {
+export default function DashboardCliente() {
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
-  
+
   const [negocio, setNegocio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 2. FETCH INICIAL: Solo para Auth y Categoría
   useEffect(() => {
     async function initDashboard() {
-      // A. Verificar Auth
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user || !user.email) {
+
+      if (!user?.email) {
         router.push("/login");
         return;
       }
 
-      // B. Obtener Datos Básicos del Negocio
-      const { data: datosNegocio, error } = await supabase
+      const { data } = await supabase
         .from("negocios")
-        .select("*") // Traemos todo, incluyendo 'category' si existe
+        .select("*")
         .eq("slug", params.slug)
         .single();
 
-      // C. Verificar Propiedad (Seguridad)
-      if (!datosNegocio || datosNegocio.email !== user.email) {
-        // Si no es el dueño, redirigir o mostrar error
-        router.push("/login"); 
-        return; 
+      // Verificar propiedad
+      if (!data || data.email !== user.email) {
+        router.push("/login");
+        return;
       }
 
-      setNegocio(datosNegocio);
+      setNegocio(data);
       setLoading(false);
     }
 
@@ -63,34 +65,35 @@ export default function DashboardFactory() {
   if (loading) return <LoadingScreen />;
   if (!negocio) return null;
 
-  // 3. SWITCH DE CATEGORÍA (Strategy Pattern)
-  const category = negocio.category || 'service_booking'; // Fallback por defecto
+  const category = negocio.category || "confirm_booking";
 
-  switch (category) {
-    case 'service_booking':
-      // Le pasamos el objeto 'negocio' ya cargado para no pedirlo de nuevo
-      return <ServiceBookingDashboard initialData={negocio} />;
-    
-    case 'project_portfolio':
-      return <ProjectDashboard negocio={negocio} />;
-
-    case 'confirm_booking':
-      return <ConfirmBookingDashboard initialData={negocio} />;
-      
-    
-    default:
-      return <div className="p-10 text-center text-red-500">Error: Categoría de negocio desconocida ({category}).</div>;
+  // ── Tipo activo ────────────────────────────────────────────────────────────
+  if (category === "confirm_booking") {
+    return <ConfirmBookingDashboard initialData={negocio} />;
   }
+
+  // ── Legacy (negocios existentes que no migraron) ───────────────────────────
+  if (category === "service_booking") {
+    return <ServiceBookingDashboard initialData={negocio} />;
+  }
+  if (category === "project_portfolio") {
+    return <ProjectDashboard negocio={negocio} />;
+  }
+
+  return (
+    <div className="p-10 text-center text-red-500">
+      Categoría desconocida: {category}
+    </div>
+  );
 }
 
-// Componente de Carga
 function LoadingScreen() {
   return (
     <div className="h-screen w-full flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin text-zinc-900" size={32} />
-            <p className="text-zinc-400 text-sm animate-pulse">Iniciando panel...</p>
-        </div>
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin text-zinc-900" size={32} />
+        <p className="text-zinc-400 text-sm animate-pulse">Iniciando panel...</p>
+      </div>
     </div>
   );
 }

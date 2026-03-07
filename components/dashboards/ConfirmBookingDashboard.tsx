@@ -11,7 +11,8 @@ import {
   X,
   Menu,  Calendar, ChevronDown, ChevronUp, Briefcase, ExternalLink,
   Phone,
-  Bell,Tag,Trash2,MoreVertical, Edit,Minus, Plus
+  Bell,Tag,Trash2,MoreVertical, Edit,Minus, Plus,
+  Puzzle
 } from "lucide-react";
 import { approveAppointment, cancelAppointment, markDepositPaid } from "@/app/actions/confirm-booking/manage-appointment";
 import { BotonCancelar } from "@/components/BotonCancelar";
@@ -23,6 +24,7 @@ import { rescheduleBooking, cancelBooking } from "@/app/actions/service-booking/
 import DomainManager from "@/components/dashboards/DomainManager";
 import { Palette } from "lucide-react";
 import WebEditor from "@/app/[slug]/dashboard/WebEditor";
+import BlockMarketplace from "@/components/dashboards/BlockMarketplace";
 
 // --- CONFIGURACIÓN ---
 const CONST_LINK_MP = "https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=TU_ID_DE_PLAN"; 
@@ -41,7 +43,7 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"resumen" | "calendario" | "clientes"| "solicitudes" | "resenas" | "suscripcion" | "configuracion" | "marketing"| "promociones" | "gestion_turnos" | "editar_web">("resumen");
+  const [activeTab, setActiveTab] = useState<"resumen" | "calendario" | "clientes"| "solicitudes" | "resenas" | "suscripcion" | "configuracion" | "marketing"| "promociones" | "gestion_turnos" | "editar_web" | "bloques">("resumen");
   const [contactModal, setContactModal] = useState({ show: false, clientEmail: '', clientName: '' });
   const [mailContent, setMailContent] = useState({ subject: '', message: '' });
   const [isSending, setIsSending] = useState(false);
@@ -313,6 +315,7 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
         label: "Personalizar Web", 
         icon: <Palette size={18} className="text-indigo-600" /> 
     }] : []),
+    { id: "bloques", label: "Mis Bloques", icon: <Puzzle size={18} /> },
     { id: "configuracion", label: "Configuración", icon: <Settings size={18} /> },
   ];
 
@@ -745,6 +748,14 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
                 </div>
             )}
             {activeTab === "marketing" && <MarketingCampaign negocio={negocio} />}
+            {activeTab === "bloques" && (
+            <div className="animate-in fade-in">
+                <BlockMarketplace
+                negocioId={negocio.id}
+                isAgency={false}
+                />
+            </div>
+            )}
             {activeTab === "configuracion" && <ConfigTab negocio={negocio} handleConnectGoogle={handleConnectGoogle} />}
 
 

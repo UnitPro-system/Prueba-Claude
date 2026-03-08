@@ -1,94 +1,74 @@
-/**
- * components/LandingModular.tsx
- *
- * Server Component — Fase 1.
- *
- * Lee los bloques activos del tenant desde `tenant_blocks`,
- * los ordena por `id` (orden de activación) y renderiza el
- * SectionComponent de cada bloque según BLOCKS_REGISTRY.
- *
- * Nomenclatura real del proyecto:
- *   - BLOCKS_REGISTRY  (no BLOCK_REGISTRY)
- *   - block_id         (no block_key)
- *   - active           (no activo)
- */
+// components/LandingModular.tsx
+// Server Component — lee bloques activos, respeta el orden configurado
+// y aplica el color de fondo del negocio.
 
 import { createClient } from "@/lib/supabase-server";
 import { BLOCKS_REGISTRY } from "@/blocks/_registry";
-import type { TenantBlock } from "@/types/blocks";
+import type { BlockId } from "@/types/blocks";
 
 interface LandingModularProps {
-  negocio: any; // mismo tipo que recibe LandingCliente
+  negocio: any;
 }
-
-// ─── Data fetching ────────────────────────────────────────────────────────────
-
-async function getActiveBlocks(negocioId: number): Promise<TenantBlock[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("tenant_blocks")
-    .select("id, negocio_id, block_id, active, activated_at, config, price_override")
-    .eq("negocio_id", negocioId)
-    .eq("active", true)
-    .order("id", { ascending: true }); // orden de activación
-
-  if (error) {
-    console.error("[LandingModular] Error cargando bloques:", error.message);
-    return [];
-  }
-
-  return data ?? [];
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default async function LandingModular({ negocio }: LandingModularProps) {
-  const blocks = await getActiveBlocks(negocio.id);
+  const supabase = await createClient();
 
-  if (blocks.length === 0) {
-    return <EmptyLanding negocio={negocio} />;
+  // 1. Traer todos los bloques activos
+  const { data: tenantBlocks } = await supabase
+    .from("tenant_blocks")
+    .select("block_id, active, config")
+    .eq("negocio_id", negocio.id)
+    .eq("active", true);
+
+  const activeBlocks = tenantBlocks ?? [];
+
+  if (activeBlocks.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="text-zinc-400 text-sm">Este negocio aún no tiene bloques activos.</p>
+      </div>
+    );
   }
 
+  // 2. Leer orden desde config del bloque 'landing'
+  const landingBlock = activeBlocks.find(b => b.block_id === "landing");
+  const savedOrder: BlockId[] = (landingBlock?.config?.sectionOrder as BlockId[]) ?? [];
+
+  // 3. Construir orden final:
+  //    - 'landing' siempre primero (hard-coded)
+  //    - luego los bloques en el orden guardado
+  //    - luego cualquier bloque activo que no esté en el orden guardado (por si se activó después)
+  const activeIds = activeBlocks.map(b => b.block_id as BlockId);
+
+  const ordered: BlockId[] = [
+    "landing",
+    ...savedOrder.filter(id => id !== "landing" && activeIds.includes(id)),
+    ...activeIds.filter(id => id !== "landing" && !savedOrder.includes(id)),
+  ];
+
+  // 4. Color de fondo del negocio (igual que ConfirmBookingLanding)
+  const raw = negocio?.config_web || {};
+  const bgColor = raw.colors?.secondary || "#ffffff";
+  const textColor = raw.colors?.text || "#1f2937";
+
+  // 5. Renderizar
   return (
-    <main className="flex flex-col w-full min-h-screen">
-      {blocks.map((block) => {
-        const entry = BLOCKS_REGISTRY[block.block_id];
+    <div style={{ backgroundColor: bgColor, color: textColor, minHeight: "100vh" }}>
+      {ordered.map(blockId => {
+        const definition = BLOCKS_REGISTRY[blockId];
+        if (!definition?.SectionComponent) return null;
 
-        // Bloque no registrado o sin vista pública → omitir silenciosamente
-        if (!entry?.SectionComponent) return null;
-
-        const SectionComponent = entry.SectionComponent;
+        const dbBlock = activeBlocks.find(b => b.block_id === blockId);
+        const Section = definition.SectionComponent;
 
         return (
-          <section
-            key={block.id}
-            id={`section-${block.block_id}`}
-            data-block={block.block_id}
-          >
-            <SectionComponent
-              negocio={negocio}
-              config={block.config ?? {}}
-            />
-          </section>
+          <Section
+            key={blockId}
+            negocio={negocio}
+            config={dbBlock?.config ?? {}}
+          />
         );
       })}
-    </main>
-  );
-}
-
-// ─── Fallback ─────────────────────────────────────────────────────────────────
-
-function EmptyLanding({ negocio }: { negocio: any }) {
-  return (
-    <main className="flex flex-col items-center justify-center min-h-screen gap-4 p-8 text-center">
-      <h1 className="text-3xl font-bold tracking-tight">{negocio.nombre}</h1>
-      {negocio.descripcion && (
-        <p className="text-muted-foreground max-w-md">{negocio.descripcion}</p>
-      )}
-      <p className="text-sm text-muted-foreground mt-8">
-        Estamos configurando nuestro sitio · Próximamente
-      </p>
-    </main>
+    </div>
   );
 }

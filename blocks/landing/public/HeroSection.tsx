@@ -1,7 +1,8 @@
 "use client";
 // blocks/landing/public/HeroSection.tsx
 // Navbar fija + sección hero. Autocontenida — no depende de otros bloques.
-// La config se lee de tenant_blocks.config con fallback a config_web.
+// CTA "Reservar Turno" despacha CustomEvent que CalendarSection escucha
+// para abrir el modal directamente (no scroll a servicios).
 
 import { useState } from "react";
 import { Menu, X, CalendarIcon } from "lucide-react";
@@ -11,37 +12,40 @@ import type { BlockSectionProps } from "@/types/blocks";
 export default function HeroSection({ negocio, config: blockConfig }: BlockSectionProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // ── Config merge: tenant_blocks.config > config_web ──────────────────────
   const raw = negocio?.config_web || {};
   const cfg = {
-    logoUrl:     (blockConfig?.logoUrl   as string) ?? raw.logoUrl ?? negocio.logo_url,
-    colors:      { primary: negocio?.color_principal || "#000000", ...raw.colors, ...(blockConfig?.colors as object) },
-    hero:        { mostrar: true, ...raw.hero,        ...(blockConfig?.hero       as object) },
-    servicios:   { mostrar: true, ...raw.servicios,   ...(blockConfig?.servicios  as object) },
-    ubicacion:   { mostrar: true, ...raw.ubicacion,   ...(blockConfig?.ubicacion  as object) },
-    appearance:  { font: "sans", radius: "medium",    ...(blockConfig?.appearance as object) ?? raw.appearance },
+    logoUrl:    (blockConfig?.logoUrl   as string) ?? raw.logoUrl ?? negocio.logo_url,
+    colors:     { primary: negocio?.color_principal || "#000000", ...raw.colors, ...(blockConfig?.colors as object) },
+    hero:       { mostrar: true, ...raw.hero,      ...(blockConfig?.hero       as object) },
+    servicios:  { mostrar: true, ...raw.servicios, ...(blockConfig?.servicios  as object) },
+    ubicacion:  { mostrar: true, ...raw.ubicacion, ...(blockConfig?.ubicacion  as object) },
+    appearance: { font: "sans", radius: "medium",  ...(blockConfig?.appearance as object) ?? raw.appearance },
   };
 
-  const brandColor   = cfg.colors.primary as string;
-  const heroImage    = (cfg.hero as any).imagenUrl || negocio.imagen_url
+  const brandColor = cfg.colors.primary as string;
+  const heroImage  = (cfg.hero as any).imagenUrl || negocio.imagen_url
     || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200";
-  const overlayOp    = ((cfg.hero as any).overlayOpacity ?? 50) / 100;
-
-  const btnRadius = {
-    none: "rounded-none", medium: "rounded-xl", full: "rounded-full",
-  }[(cfg.appearance as any).radius as string] ?? "rounded-xl";
+  const overlayOp  = ((cfg.hero as any).overlayOpacity ?? 50) / 100;
+  const btnRadius  = { none: "rounded-none", medium: "rounded-xl", full: "rounded-full" }[
+    (cfg.appearance as any).radius as string
+  ] ?? "rounded-xl";
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     setMobileMenuOpen(false);
   };
 
+  // Abre el modal de reserva directamente (sin hacer scroll a servicios)
+  const openBookingModal = () => {
+    window.dispatchEvent(new CustomEvent("unitpro:open-booking"));
+    setMobileMenuOpen(false);
+  };
+
   return (
     <>
-      {/* ── Navbar ────────────────────────────────────────────────────────── */}
+      {/* ── Navbar ──────────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 w-full z-40 bg-white/80 backdrop-blur-md border-b border-zinc-100 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          {/* Logo / Nombre */}
           <div>
             {cfg.logoUrl ? (
               <img src={cfg.logoUrl as string} alt="Logo" className="h-10 object-contain" />
@@ -50,7 +54,6 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
             )}
           </div>
 
-          {/* Menú desktop */}
           <div className="hidden lg:flex items-center gap-8">
             <button onClick={() => scrollTo("inicio")} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">Inicio</button>
             {(cfg.servicios as any)?.mostrar && (
@@ -61,7 +64,7 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
             )}
             <button onClick={() => scrollTo("contacto")} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">Contacto</button>
             <button
-              onClick={() => scrollTo("servicios")}
+              onClick={openBookingModal}
               className={`px-5 py-2.5 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all ${btnRadius}`}
               style={{ backgroundColor: brandColor }}
             >
@@ -69,13 +72,11 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
             </button>
           </div>
 
-          {/* Toggle móvil */}
           <button className="lg:hidden p-2 text-zinc-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
 
-        {/* Menú móvil */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-zinc-100 p-6 flex flex-col gap-4 shadow-xl">
             <button onClick={() => scrollTo("inicio")} className="text-left font-medium text-zinc-600 py-2">Inicio</button>
@@ -87,7 +88,7 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
             )}
             <button onClick={() => scrollTo("contacto")} className="text-left font-medium text-zinc-600 py-2">Contacto</button>
             <button
-              onClick={() => scrollTo("servicios")}
+              onClick={openBookingModal}
               className={`w-full text-white font-bold py-3 mt-2 ${btnRadius}`}
               style={{ backgroundColor: brandColor }}
             >
@@ -99,13 +100,11 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <header id="inicio" className="relative w-full min-h-[100svh] flex flex-col items-center justify-center overflow-hidden py-28">
-        {/* Fondo */}
         <div className="absolute inset-0 w-full h-full z-0">
           <img src={heroImage} className="w-full h-full object-cover" alt="Fondo" />
           <div className="absolute inset-0 bg-black transition-all duration-300" style={{ opacity: overlayOp }} />
         </div>
 
-        {/* Contenido */}
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 text-center flex flex-col items-center justify-center pt-8">
           {cfg.logoUrl && (
             <div className="w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center mb-14">
@@ -121,7 +120,7 @@ export default function HeroSection({ negocio, config: blockConfig }: BlockSecti
             />
             <div className="flex flex-col lg:flex-row items-center justify-center gap-4">
               <button
-                onClick={() => scrollTo("servicios")}
+                onClick={openBookingModal}
                 className={`w-full sm:w-auto px-8 py-3.5 min-h-[48px] text-white font-bold text-base shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 ${btnRadius}`}
                 style={{ backgroundColor: brandColor }}
               >

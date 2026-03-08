@@ -145,6 +145,40 @@ export default function CalendarPanel({
                   <ImageUpload label="Imagen del servicio (opcional)"
                     value={item.imagenUrl}
                     onChange={url => updateArray("servicios", i, "imagenUrl", url)} />
+
+                  {/* Profesionales que realizan este servicio */}
+                  {equipo.mostrar && (equipo.items || []).length > 0 && (
+                    <div>
+                      <Label>Profesionales que lo realizan (vacío = todos)</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {(equipo.items || []).map((worker: any) => {
+                          const wid = worker.id || worker.nombre;
+                          const workerIds: string[] = item.workerIds || [];
+                          const isSelected = workerIds.includes(wid);
+                          return (
+                            <button
+                              key={wid}
+                              type="button"
+                              onClick={() => {
+                                const next = isSelected
+                                  ? workerIds.filter((id: string) => id !== wid)
+                                  : [...workerIds, wid];
+                                updateArray("servicios", i, "workerIds", next);
+                              }}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                                isSelected
+                                  ? "text-white border-transparent"
+                                  : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
+                              }`}
+                              style={isSelected ? { backgroundColor: PRIMARY } : {}}
+                            >
+                              {worker.nombre}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

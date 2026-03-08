@@ -1,8 +1,7 @@
 // types/blocks.ts
 import { ComponentType, Dispatch, SetStateAction } from 'react';
 
-// ─── Datos compartidos — cargados por ModularDashboard, pasados a cada bloque ─
-// Ningún bloque fetcha sus propios datos. Todo viene de acá.
+// ─── Datos compartidos para AdminComponent ────────────────────────────────────
 export interface BlockSharedData {
   turnos:              any[];
   resenas:             any[];
@@ -10,36 +9,50 @@ export interface BlockSharedData {
   setResenas:          Dispatch<SetStateAction<any[]>>;
   fetchData:           () => Promise<void>;
   handleConnectGoogle: () => void;
-  // Modales que viven en el shell (ModularDashboard) — los bloques los disparan
   openContactModal:    (email: string, name: string) => void;
   openRescheduleModal: (id: string, currentStart: string) => void;
   openConfirmModal:    (id: string, precio: number | string, duracion: number | string) => void;
 }
 
-// ─── Props landing pública ─────────────────────────────────────────────────────
+// ─── Props landing pública ────────────────────────────────────────────────────
 export interface BlockSectionProps {
   negocio: any;
   config:  Record<string, unknown>;
 }
 
-// ─── Props dashboard (AdminComponent) ────────────────────────────────────────
+// ─── Props AdminComponent (tab dashboard) ────────────────────────────────────
 export interface BlockAdminProps {
   negocio:    any;
-  config:     Record<string, unknown>; // tenant_blocks.config (o {} si alwaysActive)
+  config:     Record<string, unknown>;
   sharedData: BlockSharedData;
+}
+
+// ─── Props EditorPanel (editor de página) ────────────────────────────────────
+// Cada bloque recibe el config_web completo y los helpers para mutarlo.
+// ModularEditor es el único que llama a Supabase — los paneles solo llaman a los helpers.
+export interface BlockEditorProps {
+  negocio:          any;
+  config:           any;   // config_web working copy
+  dbFields:         any;   // columnas DB working copy (direccion, whatsapp, etc.)
+  updateConfig:     (section: string, field: string, value: any) => void;
+  updateConfigRoot: (field: string, value: any) => void;
+  updateArray:      (section: string, index: number, field: string, value: any) => void;
+  pushToArray:      (section: string, item: any) => void;
+  removeFromArray:  (section: string, index: number) => void;
+  updateDb:         (field: string, value: any) => void;
 }
 
 // ─── IDs ──────────────────────────────────────────────────────────────────────
 export type BlockId =
-  | 'resumen' | 'solicitudes' | 'suscripcion' | 'configuracion' | 'bloques'  // platform
-  | 'landing'                                                                   // core
-  | 'calendar' | 'crm' | 'gallery' | 'reviews'                                // funcionales
-  | 'analytics' | 'marketing' | 'payments' | 'chat'                           // funcionales
-  | 'shop' | 'academy';                                                         // futuro
+  | 'resumen' | 'solicitudes' | 'suscripcion' | 'configuracion' | 'bloques'
+  | 'landing'
+  | 'calendar' | 'crm' | 'gallery' | 'reviews'
+  | 'analytics' | 'marketing' | 'payments' | 'chat'
+  | 'shop' | 'academy';
 
 export type BlockCategory = 'platform' | 'core' | 'services' | 'commerce' | 'marketing' | 'future';
 
-// ─── Definición de un bloque en el registry ──────────────────────────────────
+// ─── Definición de bloque ─────────────────────────────────────────────────────
 export interface BlockDefinition {
   id:              BlockId;
   name:            string;
@@ -48,29 +61,20 @@ export interface BlockDefinition {
   priceARS:        number;
   agencyPriceARS:  number;
   dependencies:    BlockId[];
-  icon:            string;    // nombre del ícono en lucide-react
+  icon:            string;
   available:       boolean;
-
-  // true → siempre en sidebar, sin fila en tenant_blocks
   alwaysActive?:   boolean;
-
-  // Posición en sidebar. Sin adminOrder = no aparece como tab de dashboard
   adminOrder?:     number;
-
-  // Visibilidad condicional en sidebar (ej: solicitudes solo si hay seña/manual)
   sidebarVisible?: (shared: BlockSharedData, negocio: any) => boolean;
-
-  // Badge dinámico en sidebar
   sidebarBadge?:   (shared: BlockSharedData, negocio: any) => string | number | undefined;
-
-  // Componente landing pública
   SectionComponent?: ComponentType<BlockSectionProps>;
-
-  // Componente tab de dashboard
   AdminComponent?:   ComponentType<BlockAdminProps>;
+  // Nombre del panel en el editor + componente
+  editorLabel?:    string;
+  EditorPanel?:    ComponentType<BlockEditorProps>;
 }
 
-// ─── Fila en tenant_blocks ────────────────────────────────────────────────────
+// ─── tenant_blocks ────────────────────────────────────────────────────────────
 export interface TenantBlock {
   id: number; negocio_id: number; block_id: BlockId;
   active: boolean; activated_at: string;

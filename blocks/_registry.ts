@@ -10,39 +10,39 @@
 
 import type { BlockDefinition, BlockId, BlockSharedData } from '@/types/blocks';
 
-// ── SectionComponents (landing pública) ──────────────────────────────────────
+// ── SectionComponents (landing pública) ───────────────────────────────────────
 import HeroSection     from '@/blocks/landing/public/HeroSection';
 import CalendarSection from '@/blocks/calendar/public/CalendarSection';
 import GallerySection  from '@/blocks/gallery/public/GallerySection';
 import ReviewsSection  from '@/blocks/reviews/public/ReviewsSection';
 import ContactSection  from '@/blocks/crm/public/ContactSection';
 
-// ── AdminComponents (tabs del dashboard) ─────────────────────────────────────
-// Platform
+// ── AdminComponents (tabs del dashboard) ──────────────────────────────────────
 import ResumenAdmin       from '@/blocks/platform/admin/ResumenAdmin';
 import SolicitudesAdmin   from '@/blocks/platform/admin/SolicitudesAdmin';
 import SuscripcionAdmin   from '@/blocks/platform/admin/SuscripcionAdmin';
 import ConfiguracionAdmin from '@/blocks/platform/admin/ConfiguracionAdmin';
 import BloquesAdmin       from '@/blocks/platform/admin/BloquesAdmin';
-// Funcionales
-import CalendarAdmin  from '@/blocks/calendar/admin/CalendarAdmin';
-import CrmAdmin       from '@/blocks/crm/admin/CrmAdmin';
-import ReviewsAdmin   from '@/blocks/reviews/admin/ReviewsAdmin';
-import MarketingAdmin from '@/blocks/marketing/admin/MarketingAdmin';
+import CalendarAdmin      from '@/blocks/calendar/admin/CalendarAdmin';
+import CrmAdmin           from '@/blocks/crm/admin/CrmAdmin';
+import ReviewsAdmin       from '@/blocks/reviews/admin/ReviewsAdmin';
+import MarketingAdmin     from '@/blocks/marketing/admin/MarketingAdmin';
 
-// ─── Lógica de visibilidad para "solicitudes" — idéntica al legacy ────────────
-// Visible si: booking.requestDeposit=true OR booking.requireManualConfirmation=true
-// OR ya existen turnos pendientes/esperando_senia (caso retroactivo).
+// ── EditorPanels (ModularEditor) ───────────────────────────────────────────────
+import LandingPanel  from '@/blocks/landing/editor/LandingPanel';
+import CalendarPanel from '@/blocks/calendar/editor/CalendarPanel';
+import CrmPanel      from '@/blocks/crm/editor/CrmPanel';
+import GalleryPanel  from '@/blocks/gallery/editor/GalleryPanel';
+
+// ─── Lógica de visibilidad para "solicitudes" ─────────────────────────────────
 function solicitudesVisible(shared: BlockSharedData, negocio: any): boolean {
-  let cfg = negocio?.config_web || {};
-  if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
-
   const hayTurnos = shared.turnos.some(
     t => t.estado === 'pendiente' || t.estado === 'esperando_senia'
   );
-  if (hayTurnos) return true; // siempre mostrar si ya hay algo pendiente
-
-  if (!cfg.booking) return false; // sin booking configurado → ocultar
+  if (hayTurnos) return true;
+  let cfg = negocio?.config_web || {};
+  if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
+  if (!cfg.booking) return false;
   const pideSena   = cfg.booking.requestDeposit            === true || cfg.booking.requestDeposit            === 'true';
   const pideManual = cfg.booking.requireManualConfirmation  === true || cfg.booking.requireManualConfirmation  === 'true';
   return pideSena || pideManual;
@@ -51,16 +51,14 @@ function solicitudesVisible(shared: BlockSharedData, negocio: any): boolean {
 // ─── Registry ─────────────────────────────────────────────────────────────────
 export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
 
-  // ── PLATFORM — alwaysActive: true, sin fila en tenant_blocks ─────────────
-
+  // ── PLATFORM ─────────────────────────────────────────────────────────────
   resumen: {
-    id: 'resumen', name: 'General', description: 'Resumen de actividad del negocio.',
+    id: 'resumen', name: 'General', description: 'Resumen de actividad.',
     category: 'platform', priceARS: 0, agencyPriceARS: 0, dependencies: [],
     icon: 'LayoutDashboard', available: true,
     alwaysActive: true, adminOrder: 1,
     AdminComponent: ResumenAdmin,
   },
-
   solicitudes: {
     id: 'solicitudes', name: 'Solicitudes', description: 'Confirmaciones manuales y cobro de seña.',
     category: 'platform', priceARS: 0, agencyPriceARS: 0, dependencies: [],
@@ -73,7 +71,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     },
     AdminComponent: SolicitudesAdmin,
   },
-
   suscripcion: {
     id: 'suscripcion', name: 'Suscripción', description: 'Gestión de plan y facturación.',
     category: 'platform', priceARS: 0, agencyPriceARS: 0, dependencies: [],
@@ -81,7 +78,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     alwaysActive: true, adminOrder: 9,
     AdminComponent: SuscripcionAdmin,
   },
-
   bloques: {
     id: 'bloques', name: 'Mis Bloques', description: 'Activá funcionalidades y configurá el orden de secciones.',
     category: 'platform', priceARS: 0, agencyPriceARS: 0, dependencies: [],
@@ -89,7 +85,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     alwaysActive: true, adminOrder: 10,
     AdminComponent: BloquesAdmin,
   },
-
   configuracion: {
     id: 'configuracion', name: 'Configuración', description: 'Dominio, integraciones y seguridad.',
     category: 'platform', priceARS: 0, agencyPriceARS: 0, dependencies: [],
@@ -98,18 +93,18 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     AdminComponent: ConfiguracionAdmin,
   },
 
-  // ── CORE — gratis, auto-activado al crear negocio ─────────────────────────
-  // Sin adminOrder → no genera tab en el dashboard
-
+  // ── CORE ─────────────────────────────────────────────────────────────────
   landing: {
     id: 'landing', name: 'Landing Page', description: 'Página pública del negocio.',
     category: 'core', priceARS: 0, agencyPriceARS: 0, dependencies: [],
     icon: 'Globe', available: true,
     SectionComponent: HeroSection,
+    // EditorPanel engloba identidad + apariencia + portada (siempre visible en editor)
+    editorLabel: 'Apariencia & Portada',
+    EditorPanel: LandingPanel,
   },
 
   // ── FUNCIONALES ───────────────────────────────────────────────────────────
-
   calendar: {
     id: 'calendar', name: 'Turnos & Calendario',
     description: 'Reservas online, calendario semanal, gestión de horarios y promociones.',
@@ -118,17 +113,19 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     sidebarBadge: (_, negocio) => !negocio.google_calendar_connected ? '!' : undefined,
     SectionComponent: CalendarSection,
     AdminComponent:   CalendarAdmin,
+    editorLabel: 'Servicios & Equipo',
+    EditorPanel: CalendarPanel,
   },
-
   crm: {
     id: 'crm', name: 'Clientes',
-    description: 'Base de clientes, historial y contacto directo por WhatsApp o email.',
+    description: 'Base de clientes, historial y contacto directo.',
     category: 'services', priceARS: 1500, agencyPriceARS: 1050, dependencies: [],
     icon: 'Users', available: true, adminOrder: 3,
     SectionComponent: ContactSection,
     AdminComponent:   CrmAdmin,
+    editorLabel: 'Contacto & Redes',
+    EditorPanel: CrmPanel,
   },
-
   reviews: {
     id: 'reviews', name: 'Valoraciones', description: 'Reseñas y valoraciones de clientes.',
     category: 'services', priceARS: 700, agencyPriceARS: 490, dependencies: [],
@@ -136,55 +133,46 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     SectionComponent: ReviewsSection,
     AdminComponent:   ReviewsAdmin,
   },
-
   gallery: {
     id: 'gallery', name: 'Galería', description: 'Galería visual de trabajos o portfolio.',
     category: 'services', priceARS: 800, agencyPriceARS: 560, dependencies: [],
     icon: 'Images', available: true, adminOrder: 6,
     SectionComponent: GallerySection,
-    // AdminComponent: GalleryAdmin — pendiente Fase 3
+    editorLabel: 'Galería de Imágenes',
+    EditorPanel: GalleryPanel,
   },
-
   analytics: {
     id: 'analytics', name: 'Analytics', description: 'Métricas de visitas y conversión.',
     category: 'marketing', priceARS: 1500, agencyPriceARS: 1050, dependencies: [],
     icon: 'BarChart2', available: true, adminOrder: 7,
-    // AdminComponent: AnalyticsAdmin — pendiente Fase 4
   },
-
   marketing: {
     id: 'marketing', name: 'Marketing', description: 'Campañas y comunicación con clientes.',
     category: 'marketing', priceARS: 1000, agencyPriceARS: 700, dependencies: [],
     icon: 'Megaphone', available: true, adminOrder: 8,
     AdminComponent: MarketingAdmin,
   },
-
   payments: {
     id: 'payments', name: 'Pagos', description: 'Cobros online y gestión de seña.',
     category: 'commerce', priceARS: 2000, agencyPriceARS: 1400, dependencies: [],
     icon: 'CreditCard', available: true,
-    // AdminComponent: PaymentsAdmin — pendiente Fase 5
   },
-
   chat: {
     id: 'chat', name: 'Chat', description: 'Chat en tiempo real con visitantes.',
     category: 'marketing', priceARS: 1000, agencyPriceARS: 700, dependencies: [],
     icon: 'MessageCircle', available: true,
   },
-
   shop: {
     id: 'shop', name: 'Tienda Online', description: 'Catálogo de productos y carrito.',
     category: 'commerce', priceARS: 4000, agencyPriceARS: 2800, dependencies: ['payments'],
     icon: 'ShoppingCart', available: false,
   },
-
   academy: {
     id: 'academy', name: 'Academia', description: 'Cursos y contenido educativo.',
     category: 'commerce', priceARS: 3500, agencyPriceARS: 2450, dependencies: ['payments'],
     icon: 'GraduationCap', available: false,
   },
 };
-
 // ─── Helpers del registry ─────────────────────────────────────────────────────
 
 /** Todos los bloques disponibles (available: true) */

@@ -1,26 +1,11 @@
 "use client";
 // components/dashboards/ModularDashboard.tsx
-//
-// ARQUITECTURA COMPLETA:
-//
-//   1. Carga datos (negocio, turnos, resenas, tenant_blocks activos) una sola vez.
-//   2. Construye la lista de tabs ÚNICAMENTE desde BLOCKS_REGISTRY:
-//        alwaysActive = true  → siempre visible (platform blocks)
-//        tenant_blocks activo → visible si el negocio lo activó (functional blocks)
-//   3. Filtra con def.sidebarVisible(shared, negocio) — ej: solicitudes condicional.
-//   4. Ordena por def.adminOrder.
-//   5. Renderiza BLOCKS_REGISTRY[activeTab].AdminComponent — sin ningún if/else por bloque.
-//
-//   Los modales de contacto, reprogramación y confirmación de precio viven aquí
-//   (son del shell) y se pasan a los bloques via sharedData como callbacks.
-//   Ningún bloque abre su propio modal — todo sube al shell.
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams }        from "next/navigation";
 import { createClient }                      from "@/lib/supabase";
 import {
-  Menu, X, LogOut, ExternalLink, Loader2,
-  // Íconos del sidebar — mapeados por nombre desde el registry
+  Menu, X, LogOut, ExternalLink, Loader2, Pencil,
   LayoutDashboard, Bell, CreditCard, Settings, Puzzle,
   CalendarDays, Users, Star, MessageCircle, BarChart2,
   Megaphone, Images, Globe, ShoppingCart, GraduationCap,
@@ -28,12 +13,12 @@ import {
 import { rescheduleBooking }  from "@/app/actions/service-booking/calendar-actions";
 import { approveAppointment } from "@/app/actions/confirm-booking/manage-appointment";
 import { BLOCKS_REGISTRY }   from "@/blocks/_registry";
+import ModularEditor         from "@/components/editors/ModularEditor";
 import type { BlockId, BlockSharedData } from "@/types/blocks";
 
 const PRIMARY = "#577a2c";
-const BG      = "#eee9dd"; // fondo naranja-crema idéntico al legacy
+const BG      = "#eee9dd";
 
-// Mapa nombre-ícono → ReactElement (evita eval, tree-shakeable)
 const ICON_MAP: Record<string, React.ReactNode> = {
   LayoutDashboard: <LayoutDashboard size={18} />,
   Bell:            <Bell            size={18} />,
@@ -65,6 +50,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
   const [loading, setLoading]           = useState(true);
   const [activeTab, setActiveTab]       = useState<BlockId>("resumen");
   const [mobileOpen, setMobileOpen]     = useState(false);
+  const [editorOpen, setEditorOpen]     = useState(false);
 
   // ── Estado de modales del shell ────────────────────────────────────────────
   const [contactModal,    setContactModal]    = useState({ show: false, email: "", name: "" });
@@ -117,7 +103,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
     init();
   }, []);
 
-  // ── sharedData — el contrato entre el shell y cada bloque ──────────────────
+  // ── sharedData ─────────────────────────────────────────────────────────────
   const sharedData: BlockSharedData = {
     turnos,
     resenas,
@@ -139,13 +125,12 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
       setConfirmModal({ show: true, id, price: String(precio), duration: String(duracion) }),
   };
 
-  // ── Construcción de tabs desde el registry ─────────────────────────────────
-  // Sin ninguna mención de IDs específicos — 100% data-driven.
+  // ── Tabs desde el registry ─────────────────────────────────────────────────
   const tabs = Object.values(BLOCKS_REGISTRY)
     .filter(def => {
-      if (!def.AdminComponent) return false;        // sin tab de admin → skip
-      if (def.alwaysActive)    return true;          // platform: siempre
-      return activeTenantIds.includes(def.id);       // functional: solo si activo
+      if (!def.AdminComponent) return false;
+      if (def.alwaysActive)    return true;
+      return activeTenantIds.includes(def.id);
     })
     .filter(def =>
       def.sidebarVisible ? def.sidebarVisible(sharedData, negocio) : true
@@ -212,17 +197,14 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
     </div>
   );
 
-  // El bloque activo a renderizar
   const ActiveAdmin = BLOCKS_REGISTRY[activeTab]?.AdminComponent;
-  // config específica del bloque activo (para funcionales con tenant_blocks.config)
-  const activeConfig = {}; // TODO Fase 3: leer tenant_blocks.config
-
+  const activeConfig = {};
   const logoSrc = negocio.config_web?.metadata?.faviconURL || negocio.config_web?.logoUrl;
   const nombre  = negocio.config_web?.hero?.titulo || negocio.nombre;
 
-  // ── Sidebar item ───────────────────────────────────────────────────────────
+  // ── SidebarItem ────────────────────────────────────────────────────────────
   const SidebarItem = ({ def }: { def: typeof tabs[0] }) => {
-    const badge   = def.sidebarBadge?.(sharedData, negocio);
+    const badge    = def.sidebarBadge?.(sharedData, negocio);
     const isActive = activeTab === def.id;
     return (
       <button
@@ -270,6 +252,12 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
           <div className="lg:hidden fixed top-16 left-0 w-full bg-white z-40 border-b border-zinc-200 shadow-2xl p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-200">
             {tabs.map(def => <SidebarItem key={def.id} def={def} />)}
             <div className="h-px bg-zinc-100 my-1" />
+            <button
+              onClick={() => { setEditorOpen(true); setMobileOpen(false); }}
+              className="flex items-center gap-3 p-3 rounded-lg text-sm font-bold text-white"
+              style={{ backgroundColor: PRIMARY }}>
+              <Pencil size={18} /> Editar Página
+            </button>
             <button onClick={handleLogout}
               className="flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50">
               <LogOut size={18} /> Cerrar sesión
@@ -305,9 +293,16 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
           </nav>
         </div>
 
-        <div className="mt-auto p-6 border-t border-zinc-100">
+        <div className="mt-auto p-6 space-y-2 border-t border-zinc-100">
+          {/* Botón Editar Página */}
+          <button
+            onClick={() => setEditorOpen(true)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90"
+            style={{ backgroundColor: PRIMARY }}>
+            <Pencil size={16} /> Editar Página
+          </button>
           <button onClick={handleLogout}
-            className="flex items-center gap-2 text-zinc-400 hover:text-red-600 text-sm font-medium transition-colors w-full px-2">
+            className="flex items-center gap-2 text-zinc-400 hover:text-red-600 text-sm font-medium transition-colors w-full px-2 py-1.5">
             <LogOut size={16} /> Cerrar Sesión
           </button>
         </div>
@@ -418,6 +413,15 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Editor de página (overlay fullscreen) ────────────────────────── */}
+      {editorOpen && (
+        <ModularEditor
+          negocio={negocio}
+          onClose={() => setEditorOpen(false)}
+          onSaved={fetchData}
+        />
       )}
     </div>
   );

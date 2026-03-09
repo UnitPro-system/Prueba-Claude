@@ -53,7 +53,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
 
   const [bookingData, setBookingData] = useState({
     date: "", time: "", worker: null as any,
-    clientFirstName: "", clientLastName: "", clientPhone: "", clientEmail: "",
+    clientName: "", clientPhone: "", clientEmail: "",
     message: "", clientCountryCode: "+54", clientAreaCode: "", clientLocalNumber: "",
     images: [] as string[],
   });
@@ -122,9 +122,15 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
   }, [bookingData.date, bookingData.worker, selectedServices]);
 
   // ── Duración y precio totales ─────────────────────────────────────────────
-  // FIX #3: Number() explícito para evitar concatenación de strings
   const totalDuration = selectedServices.reduce((acc, s) => acc + Number(s.duracion || s.duration || 60), 0);
   const totalPrice    = selectedServices.reduce((acc, s) => acc + Number(s.precio   || s.price   || 0),  0);
+
+  const formatDuration = (mins: number): string => {
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h} hora${h > 1 ? "s" : ""} y ${m} min` : `${h} hora${h > 1 ? "s" : ""}`;
+  };
 
   // ── Generador de slots (lógica legacy) ────────────────────────────────────
   const generateSlots = (): string[] => {
@@ -229,8 +235,6 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
       ? `${bookingData.clientCountryCode}${bookingData.clientAreaCode}${bookingData.clientLocalNumber}`
       : bookingData.clientPhone;
 
-    const nombreCompleto = `${bookingData.clientFirstName} ${bookingData.clientLastName}`.trim();
-
     const start = new Date(`${bookingData.date}T${bookingData.time}:00`);
     const end   = new Date(start.getTime() + totalDuration * 60_000);
 
@@ -238,7 +242,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
       service:     selectedServices.map(s => s.titulo || s.name).join(" + "),
       workerName:  bookingData.worker?.nombre || null,
       workerId:    bookingData.worker?.id     || null,
-      clientName:  nombreCompleto,
+      clientName:  bookingData.clientName,
       clientEmail: bookingData.clientEmail,
       clientPhone: phone,
       start:       start.toISOString(),
@@ -255,7 +259,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
       setMostrarGracias(false);
       setBookingStep(1);
       setSelectedServices([]);
-      setBookingData({ date:"", time:"", worker:null, clientFirstName:"", clientLastName:"", clientPhone:"",
+      setBookingData({ date:"", time:"", worker:null, clientName:"", clientPhone:"",
         clientEmail:"", message:"", clientAreaCode:"", clientLocalNumber:"",
         clientCountryCode: "+54", images:[] });
     }, 3500);
@@ -429,7 +433,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                           </span>
                         ))}
                         <div className="w-full flex justify-between items-center text-xs text-zinc-500 pt-1 border-t border-zinc-200 mt-1">
-                          <span className="flex items-center gap-1"><Clock size={11} /> {totalDuration} min total</span>
+                          <span className="flex items-center gap-1"><Clock size={11} /> {formatDuration(totalDuration)}</span>
                           {totalPrice > 0 && <span className="font-bold">${totalPrice} total</span>}
                         </div>
                       </div>
@@ -533,7 +537,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
 
                     <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-xs text-zinc-600">
                       <p className="font-bold mb-1">{selectedServices.map(s => s.titulo || s.name).join(" + ")}</p>
-                      <p className="flex items-center gap-1 text-zinc-400"><Clock size={11} /> {totalDuration} min total</p>
+                      <p className="flex items-center gap-1 text-zinc-400"><Clock size={11} /> {formatDuration(totalDuration)}</p>
                     </div>
 
                     <input type="date" min={new Date().toISOString().split("T")[0]}
@@ -582,63 +586,41 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                     </button>
                     <h4 className="font-bold text-lg text-zinc-900">Tus datos</h4>
 
-                    {/* Bloques de Nombre y Apellido separados */}
-                    <div className="flex gap-2">
-                      <input 
-                        placeholder="Nombre" 
-                        value={bookingData.clientFirstName}
-                        onChange={e => setBookingData(p => ({ ...p, clientFirstName: e.target.value }))}
-                        className={`w-1/2 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
-                      />
-                      <input 
-                        placeholder="Apellido" 
-                        value={bookingData.clientLastName}
-                        onChange={e => setBookingData(p => ({ ...p, clientLastName: e.target.value }))}
-                        className={`w-1/2 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
-                      />
-                    </div>
-
+                    <input placeholder="Tu nombre completo" value={bookingData.clientName}
+                      onChange={e => setBookingData(p => ({ ...p, clientName: e.target.value }))}
+                      className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
+                    />
                     <input type="email" placeholder="Email" value={bookingData.clientEmail}
                       onChange={e => setBookingData(p => ({ ...p, clientEmail: e.target.value }))}
                       className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
                     />
-                    
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-zinc-400 uppercase">Teléfono</label>
-                      
-                      {/* Selector de País, Área y Número en UNA SOLA LÍNEA */}
+                      {/* Fila 1: país + área */}
                       <div className="flex gap-2">
                         <select
                           value={bookingData.clientCountryCode}
                           onChange={e => setBookingData(p => ({ ...p, clientCountryCode: e.target.value }))}
-                          // w-[110px] y shrink-0 evitan que el select se expanda o encoja
-                          className={`w-[110px] shrink-0 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-sm ${inputRadius}`}
+                          className={`w-36 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-sm ${inputRadius}`}
                         >
                           {COUNTRY_CODES.map(c => (
                             <option key={c.code + c.name} value={c.code}>
-                              {/* Quitamos {c.name} para que solo muestre la bandera y el código */}
-                              {c.flag} {c.code}
+                              {c.flag} {c.code} {c.name}
                             </option>
                           ))}
                         </select>
-                        
-                        <input 
-                          placeholder="ej: 343"
+                        <input placeholder="Cód. área (ej: 343)"
                           value={bookingData.clientAreaCode}
-                          onChange={e => setBookingData(p => ({ ...p, clientAreaCode: e.target.value.replace(/\D/g, '') }))}
-                          // Hacemos este input más pequeño
-                          className={`w-[90px] shrink-0 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-center ${inputRadius}`}
-                          maxLength={5}
-                        />
-                        
-                        <input 
-                          placeholder="Número local"
-                          value={bookingData.clientLocalNumber}
-                          onChange={e => setBookingData(p => ({ ...p, clientLocalNumber: e.target.value.replace(/\D/g, '') }))}
-                          // flex-1 hace que este input tome todo el espacio restante
+                          onChange={e => setBookingData(p => ({ ...p, clientAreaCode: e.target.value }))}
                           className={`flex-1 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
                         />
                       </div>
+                      {/* Fila 2: número local */}
+                      <input placeholder="Número local"
+                        value={bookingData.clientLocalNumber}
+                        onChange={e => setBookingData(p => ({ ...p, clientLocalNumber: e.target.value }))}
+                        className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
+                      />
                     </div>
 
                     {/* FIX #8: Mensaje e imágenes solo si requireManualConfirmation */}
@@ -681,7 +663,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                     )}
 
                     <button onClick={handleSubmit}
-                      disabled={!bookingData.clientFirstName || !bookingData.clientLastName || !bookingData.clientEmail || enviando || uploadingImages}
+                      disabled={!bookingData.clientName || !bookingData.clientEmail || enviando || uploadingImages}
                       className={`w-full py-3.5 text-white font-bold flex items-center justify-center gap-2 ${btnRadius} disabled:opacity-50`}
                       style={{ backgroundColor: brandColor }}>
                       {enviando

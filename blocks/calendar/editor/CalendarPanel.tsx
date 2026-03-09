@@ -4,7 +4,7 @@
 // Edita las secciones de config_web que CalendarSection y ContactSection consumen.
 
 import { useState } from "react";
-import { Plus, Trash2, ChevronDown, ChevronUp, Minus, User } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail, MessageCircle } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import ScheduleEditor  from "@/components/editors/ScheduleEditor";
 import type { BlockEditorProps } from "@/types/blocks";
@@ -304,6 +304,113 @@ export default function CalendarPanel({
           />
         </SectionCard>
       )}
+
+      {/* ── Notificaciones ─────────────────────────────────────────────── */}
+      <NotificationsPanel config={config} updateConfig={updateConfig} />
     </div>
+  );
+}
+
+// ─── Notificaciones ───────────────────────────────────────────────────────────
+const NOTIF_TYPES = [
+  { id: "confirmation", label: "Confirmación" },
+  { id: "deposit",      label: "Seña"         },
+  { id: "reminder",     label: "Recordatorio" },
+] as const;
+
+const DEFAULT_NOTIF = {
+  enabled: true, sendViaEmail: true, sendViaWhatsapp: true,
+  subject: "", body: "", whatsappBody: "", bannerUrl: "",
+};
+
+function NotificationsPanel({ config, updateConfig }: Pick<BlockEditorProps, "config" | "updateConfig">) {
+  const [activeType, setActiveType] = useState<"confirmation" | "deposit" | "reminder">("confirmation");
+  const notifications = (config.notifications as any) || {};
+  const tmpl = { ...DEFAULT_NOTIF, ...(notifications[activeType] || {}) };
+
+  const update = (patch: Partial<typeof DEFAULT_NOTIF>) =>
+    updateConfig("notifications", activeType, { ...tmpl, ...patch });
+
+  return (
+    <SectionCard title="Notificaciones" color="emerald">
+      <p className="text-xs text-zinc-400 -mt-2 mb-3">
+        Configurá los mensajes automáticos que recibe el cliente al reservar.
+      </p>
+
+      {/* Tabs tipo */}
+      <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 mb-4">
+        {NOTIF_TYPES.map(t => (
+          <button key={t.id} onClick={() => setActiveType(t.id)}
+            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${activeType === t.id ? "bg-white shadow text-[#577a2c]" : "text-zinc-500"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-4 animate-in fade-in">
+        {/* Activar / canales */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-zinc-700">Activar esta notificación</span>
+          <button onClick={() => update({ enabled: !tmpl.enabled })}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${tmpl.enabled ? "bg-[#577a2c]" : "bg-zinc-300"}`}>
+            <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${tmpl.enabled ? "translate-x-5" : "translate-x-1"}`} />
+          </button>
+        </div>
+
+        {tmpl.enabled && (
+          <>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer">
+                <input type="checkbox" checked={tmpl.sendViaEmail !== false}
+                  onChange={e => update({ sendViaEmail: e.target.checked })}
+                  className="accent-[#577a2c] w-3.5 h-3.5" />
+                <Mail size={12} /> Por Email
+              </label>
+              <label className="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer">
+                <input type="checkbox" checked={!!tmpl.sendViaWhatsapp}
+                  onChange={e => update({ sendViaWhatsapp: e.target.checked })}
+                  className="accent-green-600 w-3.5 h-3.5" />
+                <MessageCircle size={12} className="text-green-600" /> Por WhatsApp
+              </label>
+            </div>
+
+            <div>
+              <Label>Asunto (Email / Título WhatsApp)</Label>
+              <input value={tmpl.subject}
+                onChange={e => update({ subject: e.target.value })}
+                className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#577a2c]/30 outline-none text-zinc-900"
+                placeholder="Tu turno fue confirmado" />
+            </div>
+
+            {tmpl.sendViaEmail !== false && (
+              <div>
+                <Label>Mensaje Email (HTML)</Label>
+                <textarea rows={4} value={tmpl.body}
+                  onChange={e => update({ body: e.target.value })}
+                  className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#577a2c]/30 outline-none resize-none text-zinc-900"
+                  placeholder="<p>Hola {{cliente}}, tu turno...</p>" />
+              </div>
+            )}
+
+            {tmpl.sendViaWhatsapp && (
+              <div>
+                <Label>Mensaje WhatsApp (texto plano)</Label>
+                <textarea rows={3} value={tmpl.whatsappBody}
+                  onChange={e => update({ whatsappBody: e.target.value })}
+                  className="w-full p-2 border border-green-200 rounded-lg text-sm bg-green-50/30 focus:ring-2 focus:ring-green-300/30 outline-none resize-none text-zinc-900"
+                  placeholder="Hola {{cliente}}, tu turno para {{servicio}}..." />
+                <p className="text-[10px] text-green-600 mt-1">Variables: {"{{cliente}}"}, {"{{servicio}}"}, {"{{fecha}}"}, {"{{hora}}"}</p>
+              </div>
+            )}
+
+            {tmpl.sendViaEmail !== false && (
+              <ImageUpload label="Banner / Cabecera (solo email)"
+                value={tmpl.bannerUrl}
+                onChange={url => update({ bannerUrl: url })} />
+            )}
+          </>
+        )}
+      </div>
+    </SectionCard>
   );
 }

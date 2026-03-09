@@ -8,7 +8,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Save, Monitor, Smartphone, ExternalLink,
-  ChevronLeft, Loader2, Check,
+  ChevronLeft, Loader2, Check, ChevronDown,
 } from "lucide-react";
 import { createClient }    from "@/lib/supabase";
 import { BLOCKS_REGISTRY } from "@/blocks/_registry";
@@ -225,19 +225,21 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
           </a>
         </div>
 
-        {/* Pestañas */}
-        <div className="border-b border-zinc-100 bg-zinc-50 shrink-0 overflow-x-auto">
-          <div className="flex gap-0.5 p-2 min-w-max">
-            {editorTabs.map(def => (
-              <button key={def.id} onClick={() => setActiveTab(def.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                  activeTab === def.id
-                    ? "bg-white shadow-sm text-zinc-900 border border-zinc-200"
-                    : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100"
-                }`}>
-                {def.editorLabel || def.name}
-              </button>
-            ))}
+        {/* Selector de bloque — dropdown */}
+        <div className="border-b border-zinc-100 bg-zinc-50 px-4 py-3 shrink-0">
+          <div className="relative">
+            <select
+              value={activeTab}
+              onChange={e => setActiveTab(e.target.value as BlockId)}
+              className="w-full appearance-none bg-white border border-zinc-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-[#577a2c]/30 cursor-pointer shadow-sm"
+            >
+              {editorTabs.map(def => (
+                <option key={def.id} value={def.id}>
+                  {def.editorLabel || def.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           </div>
         </div>
 

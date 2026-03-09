@@ -54,9 +54,48 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
   const [bookingData, setBookingData] = useState({
     date: "", time: "", worker: null as any,
     clientName: "", clientPhone: "", clientEmail: "",
-    message: "", clientAreaCode: "", clientLocalNumber: "",
+    message: "", clientCountryCode: "+54", clientAreaCode: "", clientLocalNumber: "",
     images: [] as string[],
   });
+
+  // Códigos de país ordenados: Argentina primero, luego el resto alfabético
+  const COUNTRY_CODES = [
+    { code: "+54",  flag: "🇦🇷", name: "Argentina" },
+    { code: "+591", flag: "🇧🇴", name: "Bolivia" },
+    { code: "+55",  flag: "🇧🇷", name: "Brasil" },
+    { code: "+56",  flag: "🇨🇱", name: "Chile" },
+    { code: "+57",  flag: "🇨🇴", name: "Colombia" },
+    { code: "+506", flag: "🇨🇷", name: "Costa Rica" },
+    { code: "+53",  flag: "🇨🇺", name: "Cuba" },
+    { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+    { code: "+503", flag: "🇸🇻", name: "El Salvador" },
+    { code: "+502", flag: "🇬🇹", name: "Guatemala" },
+    { code: "+509", flag: "🇭🇹", name: "Haití" },
+    { code: "+504", flag: "🇭🇳", name: "Honduras" },
+    { code: "+52",  flag: "🇲🇽", name: "México" },
+    { code: "+505", flag: "🇳🇮", name: "Nicaragua" },
+    { code: "+507", flag: "🇵🇦", name: "Panamá" },
+    { code: "+595", flag: "🇵🇾", name: "Paraguay" },
+    { code: "+51",  flag: "🇵🇪", name: "Perú" },
+    { code: "+1787",flag: "🇵🇷", name: "Puerto Rico" },
+    { code: "+1809",flag: "🇩🇴", name: "República Dominicana" },
+    { code: "+598", flag: "🇺🇾", name: "Uruguay" },
+    { code: "+58",  flag: "🇻🇪", name: "Venezuela" },
+    { code: "+34",  flag: "🇪🇸", name: "España" },
+    { code: "+1",   flag: "🇺🇸", name: "Estados Unidos" },
+    { code: "+1",   flag: "🇨🇦", name: "Canadá" },
+    { code: "+44",  flag: "🇬🇧", name: "Reino Unido" },
+    { code: "+49",  flag: "🇩🇪", name: "Alemania" },
+    { code: "+33",  flag: "🇫🇷", name: "Francia" },
+    { code: "+39",  flag: "🇮🇹", name: "Italia" },
+    { code: "+351", flag: "🇵🇹", name: "Portugal" },
+    { code: "+61",  flag: "🇦🇺", name: "Australia" },
+    { code: "+81",  flag: "🇯🇵", name: "Japón" },
+    { code: "+86",  flag: "🇨🇳", name: "China" },
+    { code: "+91",  flag: "🇮🇳", name: "India" },
+    { code: "+972", flag: "🇮🇱", name: "Israel" },
+    { code: "+27",  flag: "🇿🇦", name: "Sudáfrica" },
+  ];
 
   // ── Escuchar CTA del Hero ─────────────────────────────────────────────────
   useEffect(() => {
@@ -187,7 +226,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
     setEnviando(true);
 
     const phone = bookingData.clientAreaCode && bookingData.clientLocalNumber
-      ? `${bookingData.clientAreaCode}${bookingData.clientLocalNumber}`
+      ? `${bookingData.clientCountryCode}${bookingData.clientAreaCode}${bookingData.clientLocalNumber}`
       : bookingData.clientPhone;
 
     const start = new Date(`${bookingData.date}T${bookingData.time}:00`);
@@ -215,7 +254,8 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
       setBookingStep(1);
       setSelectedServices([]);
       setBookingData({ date:"", time:"", worker:null, clientName:"", clientPhone:"",
-        clientEmail:"", message:"", clientAreaCode:"", clientLocalNumber:"", images:[] });
+        clientEmail:"", message:"", clientAreaCode:"", clientLocalNumber:"",
+        clientCountryCode: "+54", images:[] });
     }, 3500);
   };
 
@@ -548,14 +588,32 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                       onChange={e => setBookingData(p => ({ ...p, clientEmail: e.target.value }))}
                       className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
                     />
-                    <div className="flex gap-2">
-                      <input placeholder="Cód. área" value={bookingData.clientAreaCode}
-                        onChange={e => setBookingData(p => ({ ...p, clientAreaCode: e.target.value }))}
-                        className={`w-28 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
-                      />
-                      <input placeholder="Número" value={bookingData.clientLocalNumber}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-400 uppercase">Teléfono</label>
+                      {/* Fila 1: país + área */}
+                      <div className="flex gap-2">
+                        <select
+                          value={bookingData.clientCountryCode}
+                          onChange={e => setBookingData(p => ({ ...p, clientCountryCode: e.target.value }))}
+                          className={`w-36 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-sm ${inputRadius}`}
+                        >
+                          {COUNTRY_CODES.map(c => (
+                            <option key={c.code + c.name} value={c.code}>
+                              {c.flag} {c.code} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input placeholder="Cód. área (ej: 343)"
+                          value={bookingData.clientAreaCode}
+                          onChange={e => setBookingData(p => ({ ...p, clientAreaCode: e.target.value }))}
+                          className={`flex-1 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
+                        />
+                      </div>
+                      {/* Fila 2: número local */}
+                      <input placeholder="Número local"
+                        value={bookingData.clientLocalNumber}
                         onChange={e => setBookingData(p => ({ ...p, clientLocalNumber: e.target.value }))}
-                        className={`flex-1 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
+                        className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
                       />
                     </div>
 

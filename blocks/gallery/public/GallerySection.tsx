@@ -28,7 +28,8 @@ export default function GallerySection({ negocio, config: blockConfig }: BlockSe
 
   const titulo    = (blockConfig?.titulo    as string) ?? legacySection?.titulo ?? "Nuestros Trabajos";
   // FIX #13: color del título configurable
-  const textColor = (blockConfig?.textColor as string) ?? "#18181b";
+  // Color del título: usa el color de texto global de config_web.colors.text
+  const textColor = (raw.colors?.text as string) ?? "#18181b";
 
   const appearance = raw.appearance || {};
   const cardRadius = { none: "rounded-none", medium: "rounded-2xl", full: "rounded-[2.5rem]" }[

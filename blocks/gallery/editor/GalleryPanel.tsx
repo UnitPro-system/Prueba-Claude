@@ -4,7 +4,7 @@
 // las muestra unificadas, permite borrar de cualquiera y subir nuevas.
 
 import { useState } from "react";
-import { Trash2, Upload, Loader2, GripVertical, Palette } from "lucide-react";
+import { Trash2, Upload, Loader2, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { BlockEditorProps } from "@/types/blocks";
 
@@ -74,7 +74,6 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
   };
 
   // ── Color del texto del título ────────────────────────────────────────────
-  const textColor = config.gallery?.textColor || "#18181b";
 
   return (
     <div className="space-y-6">
@@ -95,19 +94,7 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
             className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#577a2c]/30 outline-none text-zinc-900"
             placeholder="Nuestros Trabajos"
           />
-        </div>
-
-        {/* Color del título (FIX #13) */}
-        <div>
-          <Label>Color del título</Label>
-          <div className="flex items-center gap-2 p-2 border border-zinc-200 rounded-lg bg-zinc-50">
-            <input type="color" value={textColor}
-              onChange={e => updateConfigRoot("gallery", { ...config.gallery, textColor: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
-            />
-            <span className="text-sm text-zinc-600 font-mono">{textColor}</span>
-            <Palette size={14} className="text-zinc-400 ml-auto" />
-          </div>
+          <p className="text-[11px] text-zinc-400 mt-1">El color del título usa el color de texto de Apariencia.</p>
         </div>
 
         {/* Upload */}

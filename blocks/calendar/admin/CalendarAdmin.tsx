@@ -11,7 +11,7 @@ import {
   ChevronLeft, ChevronRight, Clock, User, Eye, EyeOff,
   Mail, Phone, MoreVertical, Edit, Trash2, ExternalLink,
   Link as LinkIcon, CalendarDays, X, Minus, Plus, Tag,
-  Check, Loader2, Search, MessageCircle, ChevronDown, ChevronUp,
+  Check, Loader2,
 } from "lucide-react";
 import { createClient }          from "@/lib/supabase";
 import { cancelAppointment }     from "@/app/actions/confirm-booking/manage-appointment";
@@ -20,7 +20,7 @@ import BlockTimeManager          from "@/components/dashboards/BlockTimeManager"
 import type { BlockAdminProps }  from "@/types/blocks";
 
 const PRIMARY = "#577a2c";
-type SubTab = "calendario" | "gestion" | "promociones" | "clientes";
+type SubTab = "calendario" | "gestion" | "promociones";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function CalendarAdmin({ negocio, sharedData }: BlockAdminProps) {
@@ -28,12 +28,11 @@ export default function CalendarAdmin({ negocio, sharedData }: BlockAdminProps) 
   const sub: { id: SubTab; label: string }[] = [
     { id: "calendario",  label: "Calendario" },
     { id: "gestion",     label: "Gestión de Turnos" },
-    { id: "clientes",    label: "Clientes" },
     { id: "promociones", label: "Promociones" },
   ];
   return (
     <div className="animate-in fade-in space-y-6">
-      <div className="flex flex-wrap gap-1 bg-zinc-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-zinc-100 p-1 rounded-xl w-fit">
         {sub.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${subTab === t.id ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}>
@@ -43,7 +42,6 @@ export default function CalendarAdmin({ negocio, sharedData }: BlockAdminProps) 
       </div>
       {subTab === "calendario"  && <CalendarioTab  negocio={negocio} sharedData={sharedData} />}
       {subTab === "gestion"     && <GestionTab     negocio={negocio} />}
-      {subTab === "clientes"    && <ClientesTab    negocio={negocio} sharedData={sharedData} />}
       {subTab === "promociones" && <PromocionesTab negocio={negocio} />}
     </div>
   );
@@ -476,182 +474,6 @@ function PromocionesTab({ negocio }: { negocio: any }) {
           <p className="text-zinc-400 text-sm">No hay promociones activas.</p>
         </div>
       )}
-    </div>
-  );
-}
-// ─── Tab Clientes ─────────────────────────────────────────────────────────────
-function ClientesTab({ negocio, sharedData }: { negocio: any; sharedData: any }) {
-  const { turnos } = sharedData;
-  const [search,     setSearch]     = useState("");
-  const [filtroWorker, setFiltroWorker] = useState("Todos");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const equipo       = negocio.config_web?.equipo?.items || negocio.config_web?.equipo?.members || [];
-  const trabajadores = equipo.map((m: any) => m.nombre || m.name).filter(Boolean);
-
-  // Deduplicar clientes (un registro por email, el más reciente)
-  const clientesMap: Map<string, any> = new Map();
-  for (const t of (turnos || [])) {
-    const email = (t.cliente_email || "").toLowerCase().trim();
-    const key = email || t.cliente_nombre;
-    if (!clientesMap.has(key) || new Date(t.fecha_inicio) > new Date(clientesMap.get(key).fecha_inicio)) {
-      clientesMap.set(key, t);
-    }
-  }
-  const clientes = Array.from(clientesMap.values());
-
-  // Filtro por trabajador
-  const filtradosPorWorker = filtroWorker === "Todos"
-    ? clientes
-    : clientes.filter(t => {
-        const fromSvc = typeof t.servicio === "string" && t.servicio.includes(" - ")
-          ? t.servicio.split(" - ")[1]?.trim()
-          : "";
-        return (t.worker_name?.trim() || fromSvc) === filtroWorker;
-      });
-
-  // Buscador — busca en nombre, email, teléfono, servicio
-  const q = search.toLowerCase();
-  const filtrados = q === ""
-    ? filtradosPorWorker
-    : filtradosPorWorker.filter(t =>
-        (t.cliente_nombre  || "").toLowerCase().includes(q) ||
-        (t.cliente_email   || "").toLowerCase().includes(q) ||
-        (t.cliente_telefono|| "").toLowerCase().includes(q) ||
-        (t.servicio        || "").toLowerCase().includes(q)
-      );
-
-  const fmt = (iso: string) => {
-    if (!iso) return "—";
-    const [d, h] = iso.split("T");
-    return `${d.split("-").reverse().join("/")} ${h?.slice(0, 5) || ""}`;
-  };
-  const waLink = (phone: string) => `https://wa.me/${phone.replace(/\D/g, "")}`;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">
-          Clientes <span className="text-base font-normal text-zinc-400">({filtrados.length})</span>
-        </h1>
-      </div>
-
-      {/* Barra de búsqueda + filtro trabajador */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            placeholder="Buscar por nombre, email, teléfono o servicio..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900 bg-white"
-          />
-        </div>
-
-        {trabajadores.length > 0 && (
-          <select
-            value={filtroWorker}
-            onChange={e => setFiltroWorker(e.target.value)}
-            className="px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none bg-white text-zinc-700 focus:ring-2 focus:ring-[#577a2c]/30"
-          >
-            <option value="Todos">Todos los profesionales</option>
-            {trabajadores.map((w: string) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {/* Tabla (desktop) */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-zinc-50 border-b border-zinc-100 text-zinc-500 font-medium">
-              <tr>
-                <th className="px-6 py-4">Nombre</th>
-                <th className="px-6 py-4">Teléfono</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Último servicio</th>
-                <th className="px-6 py-4">Último turno</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              {filtrados.map(t => (
-                <tr key={t.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-zinc-900">{t.cliente_nombre}</td>
-                  <td className="px-6 py-4 font-mono text-zinc-600 text-xs">{t.cliente_telefono || "—"}</td>
-                  <td className="px-6 py-4 text-zinc-500 text-xs">{t.cliente_email || "—"}</td>
-                  <td className="px-6 py-4 text-zinc-500 text-xs max-w-[200px] truncate">{t.servicio || "—"}</td>
-                  <td className="px-6 py-4 font-mono text-zinc-600 text-xs">{fmt(t.fecha_inicio)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      {t.cliente_telefono && (
-                        <a href={waLink(t.cliente_telefono)} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 font-bold text-xs">
-                          <MessageCircle size={13} /> WhatsApp
-                        </a>
-                      )}
-                      {t.cliente_email && (
-                        <a href={`mailto:${t.cliente_email}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-bold text-xs">
-                          <Mail size={13} /> Email
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Cards expandibles (mobile) */}
-        <div className="lg:hidden divide-y divide-zinc-100">
-          {filtrados.map(t => (
-            <div key={t.id}>
-              <div className="p-4 flex items-center justify-between cursor-pointer active:bg-zinc-50"
-                onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}>
-                <div>
-                  <p className="font-bold text-zinc-900">{t.cliente_nombre}</p>
-                  <p className="text-sm text-zinc-400 flex items-center gap-1">
-                    <Phone size={11} /> {t.cliente_telefono || "Sin teléfono"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {t.cliente_telefono && (
-                    <a href={waLink(t.cliente_telefono)} target="_blank" rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="p-2 bg-emerald-50 text-emerald-600 rounded-full">
-                      <MessageCircle size={14} />
-                    </a>
-                  )}
-                  {expandedId === t.id ? <ChevronUp size={18} className="text-zinc-400" /> : <ChevronDown size={18} className="text-zinc-400" />}
-                </div>
-              </div>
-              {expandedId === t.id && (
-                <div className="px-4 pb-4 pt-2 bg-zinc-50/50 space-y-2 border-t border-zinc-100 text-sm">
-                  <p className="flex items-center gap-2 text-zinc-600"><Mail size={14} className="text-zinc-400" /> {t.cliente_email || "—"}</p>
-                  <p className="flex items-center gap-2 text-zinc-600"><CalendarDays size={14} className="text-zinc-400" /> {fmt(t.fecha_inicio)}</p>
-                  <p className="flex items-center gap-2 text-zinc-600 text-xs"><Tag size={14} className="text-zinc-400" /> {t.servicio || "—"}</p>
-                  {t.cliente_email && (
-                    <a href={`mailto:${t.cliente_email}`}
-                      className="mt-2 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 text-white rounded-xl font-bold text-sm w-full">
-                      <Mail size={15} /> Enviar Email
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {filtrados.length === 0 && (
-          <div className="p-10 text-center text-zinc-400 text-sm">
-            {search || filtroWorker !== "Todos" ? "No hay clientes que coincidan con la búsqueda." : "No hay clientes registrados aún."}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

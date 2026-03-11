@@ -596,31 +596,34 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                     />
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-zinc-400 uppercase">Teléfono</label>
-                      {/* Fila 1: país + área */}
                       <div className="flex gap-2">
+                        {/* Selector de país */}
                         <select
                           value={bookingData.clientCountryCode}
                           onChange={e => setBookingData(p => ({ ...p, clientCountryCode: e.target.value }))}
-                          className={`w-36 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-sm ${inputRadius}`}
+                          className={`w-[105px] shrink-0 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white text-sm ${inputRadius}`}
                         >
                           {COUNTRY_CODES.map(c => (
                             <option key={c.code + c.name} value={c.code}>
-                              {c.flag} {c.code} {c.name}
+                              {c.flag} {c.code}
                             </option>
                           ))}
                         </select>
-                        <input placeholder="Cód. área (ej: 343)"
+                        
+                        {/* Input de código de área */}
+                        <input placeholder="Área"
                           value={bookingData.clientAreaCode}
                           onChange={e => setBookingData(p => ({ ...p, clientAreaCode: e.target.value }))}
+                          className={`w-20 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
+                        />
+                        
+                        {/* Input de número local */}
+                        <input placeholder="Número local"
+                          value={bookingData.clientLocalNumber}
+                          onChange={e => setBookingData(p => ({ ...p, clientLocalNumber: e.target.value }))}
                           className={`flex-1 p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
                         />
                       </div>
-                      {/* Fila 2: número local */}
-                      <input placeholder="Número local"
-                        value={bookingData.clientLocalNumber}
-                        onChange={e => setBookingData(p => ({ ...p, clientLocalNumber: e.target.value }))}
-                        className={`w-full p-3 border border-zinc-200 outline-none focus:border-zinc-400 text-zinc-900 bg-white ${inputRadius}`}
-                      />
                     </div>
 
                     {/* FIX #8: Mensaje e imágenes solo si requireManualConfirmation */}

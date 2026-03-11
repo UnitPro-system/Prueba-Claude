@@ -6,20 +6,18 @@ import {
   ExternalLink, MapPin, Clock, Trash2, Puzzle, X,
   CalendarDays, Star, Images, Globe, ChevronRight,
   ArrowLeft, CheckCircle, Layers, Pencil, Save, Phone,
-  KeyRound, Eye, EyeOff, Lock,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import WebEditor from "./WebEditor";
 import BlockMarketplace from "@/components/dashboards/BlockMarketplace";
-import { changeClientPassword } from "@/app/actions/admin/change-password";
 
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 const SELECTABLE_BLOCKS = [
-  { id: "calendar", name: "Turnos & Agenda",    desc: "Reservas online, servicios, equipo",     price: "30 UnitCoins/mes" },
-  { id: "reviews",  name: "Valoraciones",        desc: "Reseñas de clientes, Google Reviews",    price: "7 UnitCoins/mes"  },
-  { id: "gallery",  name: "Galería",             desc: "Fotos de trabajos y portfolio",           price: "8 UnitCoins/mes"  },
-  { id: "crm",      name: "Base de Clientes",    desc: "Historial y datos de clientes",           price: "15 UnitCoins/mes" },
+  { id: "calendar", name: "Turnos & Agenda",    desc: "Reservas online, servicios, equipo",     price: "25 UC/mes" },
+  { id: "reviews",  name: "Valoraciones",        desc: "Reseñas de clientes, Google Reviews",    price: "7 UC/mes"  },
+  { id: "gallery",  name: "Galería",             desc: "Fotos de trabajos y portfolio",           price: "8 UC/mes"  },
+  { id: "crm",      name: "Base de Clientes",    desc: "Historial y datos de clientes",           price: "15 UC/mes" },
 ];
 
 const TEMPLATES = [
@@ -56,13 +54,6 @@ export default function DashboardAgencia() {
   const [quickEditData,   setQuickEditData]     = useState({ nombre: "", whatsapp: "", email: "", direccion: "" });
   const [savingQuickEdit, setSavingQuickEdit]   = useState(false);
   const [quickEditSaved,  setQuickEditSaved]    = useState(false);
-  const [quickEditTab,    setQuickEditTab]      = useState<"datos" | "contrasenia">("datos");
-  // Estado para cambio de contraseña
-  const [newPassword,     setNewPassword]       = useState("");
-  const [showNewPass,     setShowNewPass]       = useState(false);
-  const [savingPass,      setSavingPass]        = useState(false);
-  const [passSaved,       setPassSaved]         = useState(false);
-  const [passError,       setPassError]         = useState("");
   const [blocksPanelNegocio, setBlocksPanelNegocio] = useState<{ id: number; nombre: string } | null>(null);
 
   useEffect(() => { checkAgencySession(); }, []);
@@ -158,10 +149,6 @@ export default function DashboardAgencia() {
       direccion: cliente.direccion || "",
     });
     setQuickEditSaved(false);
-    setQuickEditTab("datos");
-    setNewPassword("");
-    setPassSaved(false);
-    setPassError("");
   };
 
   // ── Guardar edición rápida ───────────────────────────────────────────────
@@ -187,22 +174,6 @@ export default function DashboardAgencia() {
       setTimeout(() => { setQuickEditClient(null); setQuickEditSaved(false); }, 1200);
     }
     setSavingQuickEdit(false);
-  };
-
-  // ── Cambiar contraseña del cliente ───────────────────────────────────────
-  const handleChangePassword = async () => {
-    if (!quickEditClient) return;
-    setPassError("");
-    setSavingPass(true);
-    const result = await changeClientPassword(quickEditClient.id, newPassword);
-    if (result.success) {
-      setPassSaved(true);
-      setNewPassword("");
-      setTimeout(() => setPassSaved(false), 2500);
-    } else {
-      setPassError(result.error || "Error inesperado.");
-    }
-    setSavingPass(false);
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#577a2c]" /></div>;
@@ -494,7 +465,6 @@ export default function DashboardAgencia() {
       {quickEditClient && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-300">
-
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -513,143 +483,67 @@ export default function DashboardAgencia() {
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 mx-6 mt-4 bg-slate-100 p-1 rounded-xl">
-              {([
-                { id: "datos",      label: "Datos",       icon: <Pencil size={13} /> },
-                { id: "contrasenia", label: "Contraseña", icon: <KeyRound size={13} /> },
-              ] as { id: "datos" | "contrasenia"; label: string; icon: React.ReactNode }[]).map(t => (
-                <button key={t.id} onClick={() => setQuickEditTab(t.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                    quickEditTab === t.id ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"
-                  }`}>
-                  {t.icon} {t.label}
-                </button>
-              ))}
+            {/* Formulario */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Nombre del negocio</label>
+                <input
+                  type="text" value={quickEditData.nombre}
+                  onChange={e => setQuickEditData(p => ({ ...p, nombre: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
+                  placeholder="Nombre del negocio"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">WhatsApp</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text" value={quickEditData.whatsapp}
+                    onChange={e => setQuickEditData(p => ({ ...p, whatsapp: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
+                    placeholder="+549..."
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Dirección</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text" value={quickEditData.direccion}
+                    onChange={e => setQuickEditData(p => ({ ...p, direccion: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
+                    placeholder="Av. Siempre Viva 123"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
+                Para cambiar la contraseña o editar la landing completa, usá el botón <strong>Diseñar</strong> desde la tarjeta del cliente.
+              </p>
             </div>
 
-            {/* ── TAB: DATOS ── */}
-            {quickEditTab === "datos" && (
-              <>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Nombre del negocio</label>
-                    <input
-                      type="text" value={quickEditData.nombre}
-                      onChange={e => setQuickEditData(p => ({ ...p, nombre: e.target.value }))}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
-                      placeholder="Nombre del negocio"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">WhatsApp</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                      <input
-                        type="text" value={quickEditData.whatsapp}
-                        onChange={e => setQuickEditData(p => ({ ...p, whatsapp: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
-                        placeholder="+549..."
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Dirección</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                      <input
-                        type="text" value={quickEditData.direccion}
-                        onChange={e => setQuickEditData(p => ({ ...p, direccion: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
-                        placeholder="Av. Siempre Viva 123"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="px-6 pb-6 flex gap-3">
-                  <button onClick={() => setQuickEditClient(null)}
-                    className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm">
-                    Cancelar
-                  </button>
-                  <button onClick={handleSaveQuickEdit} disabled={savingQuickEdit || quickEditSaved}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                      quickEditSaved
-                        ? "bg-green-50 text-green-700 border border-green-200"
-                        : "text-white hover:opacity-90"
-                    }`}
-                    style={!quickEditSaved ? { backgroundColor: "#577a2c" } : {}}>
-                    {savingQuickEdit
-                      ? <><Loader2 size={15} className="animate-spin" /> Guardando...</>
-                      : quickEditSaved
-                      ? <><CheckCircle size={15} /> ¡Guardado!</>
-                      : <><Save size={15} /> Guardar cambios</>}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* ── TAB: CONTRASEÑA ── */}
-            {quickEditTab === "contrasenia" && (
-              <>
-                <div className="p-6 space-y-4">
-                  <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                    <Lock size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700 leading-relaxed">
-                      Esto cambia la contraseña del acceso al dashboard del cliente. El cambio es inmediato.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Nueva contraseña</label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                      <input
-                        type={showNewPass ? "text" : "password"}
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
-                        placeholder="Mínimo 6 caracteres"
-                        minLength={6}
-                      />
-                      <button type="button" onClick={() => setShowNewPass(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
-                        {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                  {passError && (
-                    <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{passError}</p>
-                  )}
-                  {passSaved && (
-                    <p className="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg flex items-center gap-2">
-                      <CheckCircle size={13} /> Contraseña actualizada correctamente.
-                    </p>
-                  )}
-                </div>
-                <div className="px-6 pb-6 flex gap-3">
-                  <button onClick={() => setQuickEditClient(null)}
-                    className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm">
-                    Cerrar
-                  </button>
-                  <button onClick={handleChangePassword}
-                    disabled={savingPass || newPassword.length < 6 || passSaved}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                      passSaved
-                        ? "bg-green-50 text-green-700 border border-green-200"
-                        : newPassword.length < 6
-                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        : "text-white hover:opacity-90"
-                    }`}
-                    style={!passSaved && newPassword.length >= 6 ? { backgroundColor: "#577a2c" } : {}}>
-                    {savingPass
-                      ? <><Loader2 size={15} className="animate-spin" /> Cambiando...</>
-                      : passSaved
-                      ? <><CheckCircle size={15} /> ¡Listo!</>
-                      : <><KeyRound size={15} /> Cambiar contraseña</>}
-                  </button>
-                </div>
-              </>
-            )}
-
+            {/* Footer */}
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={() => setQuickEditClient(null)}
+                className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleSaveQuickEdit} disabled={savingQuickEdit || quickEditSaved}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                  quickEditSaved
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "text-white hover:opacity-90"
+                }`}
+                style={!quickEditSaved ? { backgroundColor: "#577a2c" } : {}}>
+                {savingQuickEdit
+                  ? <><Loader2 size={15} className="animate-spin" /> Guardando...</>
+                  : quickEditSaved
+                  ? <><CheckCircle size={15} /> ¡Guardado!</>
+                  : <><Save size={15} /> Guardar cambios</>}
+              </button>
+            </div>
           </div>
         </div>
       )}

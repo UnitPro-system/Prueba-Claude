@@ -58,8 +58,10 @@ export interface BlockDefinition {
   name:            string;
   description:     string;
   category:        BlockCategory;
-  priceARS:        number;
-  agencyPriceARS:  number;
+  priceARS:        number;       // legacy — referencia histórica
+  agencyPriceARS:  number;       // legacy — referencia histórica
+  priceUC:         number;       // precio en UnitCoins (moneda interna)
+  agencyPriceUC:   number;       // precio agencia en UnitCoins
   dependencies:    BlockId[];
   icon:            string;
   available:       boolean;

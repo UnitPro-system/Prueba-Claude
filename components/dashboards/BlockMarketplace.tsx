@@ -11,6 +11,7 @@ import {
   CreditCard, MessageCircle, ShoppingBag, GraduationCap,
   Check, X, Loader2, ChevronRight, Zap, Lock, AlertTriangle,
 } from "lucide-react";
+import { UCoin } from "@/components/ui/UnitCoin";
 import {
   BLOCKS_REGISTRY,
   AVAILABLE_BLOCKS,
@@ -209,10 +210,8 @@ export default function BlockMarketplace({
             Total mensual estimado
           </p>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white">
-              ${totalARS.toLocaleString("es-AR")}
-            </span>
-            <span className="text-zinc-400 text-sm">ARS / mes</span>
+            <UCoin amount={totalARS} size="lg" />
+            <span className="text-zinc-400 text-sm">/ mes</span>
           </div>
           <p className="text-zinc-500 text-xs mt-1">
             {activeCount} bloque{activeCount !== 1 ? "s" : ""} activo{activeCount !== 1 ? "s" : ""}
@@ -247,7 +246,7 @@ export default function BlockMarketplace({
                 const isActive = activeBlockIds.includes(block.id);
                 const isToggling = togglingId === block.id;
                 const isCore = block.id === "landing";
-                const price = isAgency ? block.agencyPriceARS : block.priceARS;
+                const price = isAgency ? block.agencyPriceUC : block.priceUC;
 
                 // Verificar si tiene dependencias no cumplidas
                 const { satisfied: depsOk, missing } = checkDependencies(
@@ -307,11 +306,7 @@ export default function BlockMarketplace({
                         {/* Precio y botón */}
                         <div className="flex items-center justify-between mt-3">
                           <span className="text-sm font-bold text-zinc-900">
-                            {price === 0 ? (
-                              <span className="text-green-600">Gratis</span>
-                            ) : (
-                              `$${price.toLocaleString("es-AR")}/mes`
-                            )}
+                          <UCoin amount={price} size="sm" showLabel={price > 0} />
                           </span>
 
                           {/* Botón toggle */}
@@ -383,7 +378,7 @@ export default function BlockMarketplace({
                       </div>
                       <p className="text-zinc-400 text-xs mt-0.5">{block.description}</p>
                       <p className="text-xs font-bold text-zinc-400 mt-2">
-                        Desde ${(isAgency ? block.agencyPriceARS : block.priceARS).toLocaleString("es-AR")}/mes
+                        Desde <UCoin amount={isAgency ? block.agencyPriceUC : block.priceUC} size="xs" showLabel /> 
                       </p>
                     </div>
                   </div>

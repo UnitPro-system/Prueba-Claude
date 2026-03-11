@@ -2,13 +2,16 @@
 // blocks/gallery/editor/GalleryPanel.tsx
 // Lee imágenes de AMBAS fuentes (legacy customSections + nuevo gallery.images),
 // las muestra unificadas, permite borrar de cualquiera y subir nuevas.
+//
+// FIX delete: botón eliminar usa onPointerDown+stopPropagation para que el
+//             div draggable no intercepte el evento y mueva en vez de borrar.
+// FIX visibilidad: imágenes guardadas en config_web.gallery.images —
+//                  misma fuente que lee GallerySection.
 
 import { useState } from "react";
 import { Trash2, Upload, Loader2, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { BlockEditorProps } from "@/types/blocks";
-
-const PRIMARY = "#577a2c";
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="text-[11px] font-bold text-zinc-400 uppercase block mb-1">{children}</label>;
@@ -19,25 +22,20 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
   const [uploading, setUploading] = useState(false);
   const [dragIdx,   setDragIdx]   = useState<number | null>(null);
 
-  // ── Leer imágenes de ambas fuentes ────────────────────────────────────────
-  // Fuente nueva: config.gallery.images → array de strings (URLs)
-  // Fuente legacy: config_web.customSections[*].imagenes → array de {url, descripcion}
-  const rawGallery: string[] = config.gallery?.images || [];
+  // ── Leer imágenes de ambas fuentes ───────────────────────────────────────
+  const rawGallery: string[] = (config.gallery as any)?.images || [];
   const legacyImages: string[] = (
     (negocio?.config_web?.customSections || [])
       .filter((s: any) => s.type === "gallery")
       .flatMap((s: any) => (s.imagenes || []).map((img: any) => (typeof img === "string" ? img : img?.url)).filter(Boolean))
   );
-
-  // Unificadas sin duplicados: las nuevas primero, luego las legacy que no están ya
   const allImages: string[] = [
     ...rawGallery,
     ...legacyImages.filter(url => !rawGallery.includes(url)),
   ];
 
-  // Guardar la lista unificada en el nuevo formato (strings)
   const saveImages = (newList: string[]) => {
-    updateConfigRoot("gallery", { ...config.gallery, images: newList });
+    updateConfigRoot("gallery", { ...(config.gallery as any), images: newList });
   };
 
   // ── Upload ────────────────────────────────────────────────────────────────
@@ -60,6 +58,7 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
     e.target.value = "";
   };
 
+  // FIX: snapshot en el momento exacto del click, sin depender de closures stale
   const remove = (i: number) => saveImages(allImages.filter((_, idx) => idx !== i));
 
   // ── Drag & drop reorder ───────────────────────────────────────────────────
@@ -72,8 +71,6 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
     saveImages(next);
     setDragIdx(target);
   };
-
-  // ── Color del texto del título ────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -89,8 +86,8 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
         <div>
           <Label>Título de la sección</Label>
           <input type="text"
-            value={config.gallery?.titulo ?? "Nuestros Trabajos"}
-            onChange={e => updateConfigRoot("gallery", { ...config.gallery, titulo: e.target.value })}
+            value={(config.gallery as any)?.titulo ?? "Nuestros Trabajos"}
+            onChange={e => updateConfigRoot("gallery", { ...(config.gallery as any), titulo: e.target.value })}
             className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#577a2c]/30 outline-none text-zinc-900"
             placeholder="Nuestros Trabajos"
           />
@@ -120,15 +117,25 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
                   onDragStart={() => setDragIdx(i)}
                   onDragOver={e => onDragOver(e, i)}
                   onDragEnd={() => setDragIdx(null)}
-                  className={`relative aspect-square rounded-lg overflow-hidden border group cursor-grab active:cursor-grabbing transition-all ${dragIdx === i ? "opacity-50 ring-2 ring-[#577a2c]" : "border-zinc-200 hover:shadow-md"}`}>
+                  className={`relative aspect-square rounded-lg overflow-hidden border group cursor-grab active:cursor-grabbing transition-all ${
+                    dragIdx === i ? "opacity-50 ring-2 ring-[#577a2c]" : "border-zinc-200 hover:shadow-md"
+                  }`}
+                >
                   <img src={url} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                    <button onClick={() => remove(i)}
-                      className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    {/*
+                      FIX: onPointerDown con stopPropagation evita que el div draggable
+                      intercepte el evento, lo que causaba que se moviera en lugar de borrarse.
+                    */}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); remove(i); }}
+                      className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors z-10"
+                    >
                       <Trash2 size={12} />
                     </button>
                   </div>
-                  <div className="absolute top-1 left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1 left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <GripVertical size={14} />
                   </div>
                 </div>
@@ -137,7 +144,7 @@ export default function GalleryPanel({ config, updateConfigRoot, negocio }: Bloc
             <p className="text-[11px] text-zinc-400 text-center">Arrastrá las imágenes para reordenarlas.</p>
           </>
         ) : (
-          <p className="text-center text-zinc-400 text-sm py-4 italic">Sin imágenes aún.</p>
+          <p className="text-center text-zinc-400 text-sm py-4 italic">Sin imágenes aún. Subí la primera foto arriba.</p>
         )}
       </section>
     </div>

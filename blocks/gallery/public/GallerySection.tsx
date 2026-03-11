@@ -1,5 +1,14 @@
 "use client";
 // blocks/gallery/public/GallerySection.tsx
+//
+// FIX visibilidad: el editor guarda las imágenes en config_web.gallery.images
+// via updateConfigRoot("gallery", {...}). Este componente ahora lee de ahí
+// como fuente primaria, igual que hacen CalendarSection y ReviewsSection.
+//
+// Orden de prioridad:
+//   1. config_web.gallery.images (nuevo — donde guarda el editor)
+//   2. blockConfig.images (tenant_blocks.config — por si se migra en el futuro)
+//   3. customSections legacy
 
 import { useState, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
@@ -11,24 +20,30 @@ export default function GallerySection({ negocio, config: blockConfig }: BlockSe
 
   const raw = negocio?.config_web || {};
 
-  // Fuente 1: tenant_blocks.config.gallery (nuevo)
-  const galleryImages: string[] = (blockConfig?.images as string[]) || [];
+  // ── Fuente 1: config_web.gallery.images (donde guarda GalleryPanel via updateConfigRoot)
+  const webGallery = (raw.gallery as any) || {};
+  const webImages: string[] = webGallery.images || [];
 
-  // Fuente 2: legacy customSections
+  // ── Fuente 2: tenant_blocks.config.images (blockConfig — fallback / futuro)
+  const blockImages: string[] = (blockConfig?.images as string[]) || [];
+
+  // ── Fuente 3: legacy customSections
   const legacySection = (raw.customSections || []).find((s: any) => s.type === "gallery");
   const legacyImages: string[] = (legacySection?.imagenes || [])
     .map((img: any) => (typeof img === "string" ? img : img?.url))
     .filter(Boolean);
 
-  // Unificadas, sin duplicados, nuevas primero
+  // Primaria: config_web.gallery.images > blockConfig.images
+  const primaryImages = webImages.length > 0 ? webImages : blockImages;
+
+  // Unificadas sin duplicados
   const imagenes: string[] = [
-    ...galleryImages,
-    ...legacyImages.filter((url: string) => !galleryImages.includes(url)),
+    ...primaryImages,
+    ...legacyImages.filter((url: string) => !primaryImages.includes(url)),
   ];
 
-  const titulo    = (blockConfig?.titulo    as string) ?? legacySection?.titulo ?? "Nuestros Trabajos";
-  // FIX #13: color del título configurable
-  // Color del título: usa el color de texto global de config_web.colors.text
+  // Título — misma prioridad
+  const titulo = webGallery.titulo ?? (blockConfig?.titulo as string) ?? legacySection?.titulo ?? "Nuestros Trabajos";
   const textColor = (raw.colors?.text as string) ?? "#18181b";
 
   const appearance = raw.appearance || {};
@@ -36,6 +51,7 @@ export default function GallerySection({ negocio, config: blockConfig }: BlockSe
     appearance.radius as string
   ] ?? "rounded-2xl";
 
+  // Sin imágenes: no renderizar la sección (se oculta limpiamente)
   if (imagenes.length === 0) return null;
 
   const scrollBy = (dir: number) => scrollRef.current?.scrollBy({ left: dir * 340, behavior: "smooth" });

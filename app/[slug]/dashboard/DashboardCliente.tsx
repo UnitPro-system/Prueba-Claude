@@ -53,44 +53,39 @@ export default function DashboardCliente() {
       const decodedSlug = decodeURIComponent(rawSlug || "").toLowerCase();
 
       // 2. Determinamos la columna correcta (custom_domain vs slug)
-      const { data } = await supabase
-  .from("negocios")
-  .select("*, agencies(name, nombre_agencia)")
-  .eq("user_id", user.id)
-  .single();
+      const searchColumn = decodedSlug.includes(".") ? "custom_domain" : "slug";
+      const { data, error } = await supabase
+        .from("negocios")
+        .select("*, agencies(name, nombre_agencia)")
+        .eq(searchColumn, decodedSlug)
+        .single();
 
-  if (!data) {
-    // Fallback: intentar por email (negocios legacy sin user_id)
-    const { data: dataByEmail } = await supabase
-      .from("negocios")
-      .select("*, agencies(name, nombre_agencia)")
-      .ilike("email", user.email)
-      .single();
+      // Si data es null, puede ser RLS bloqueando (user_id null) o negocio inexistente.
+      // Intentamos fallback por email directo (más permisivo con la política nueva).
+      if (!data) {
+        const { data: dataByEmail } = await supabase
+          .from("negocios")
+          .select("*, agencies(name, nombre_agencia)")
+          .ilike("email", user.email)
+          .single();
 
-    if (!dataByEmail) {
-      router.push("/login");
-      return;
-    }
+        if (!dataByEmail) {
+          router.push("/login");
+          return;
+        }
 
-    // Si el slug de la URL no coincide, redirigir al correcto
-    const correctSlug = dataByEmail.custom_domain || dataByEmail.slug;
-    if (correctSlug && correctSlug !== decodedSlug) {
-      router.replace(`/${correctSlug}/dashboard`);
-      return;
-    }
+        setNegocio(dataByEmail);
+        setLoading(false);
+        return;
+      }
 
-    setNegocio(dataByEmail);
-    setLoading(false);
-    return;
-  }
-
-  // Si el slug de la URL no coincide con el negocio del usuario, redirigir
-  const correctSlug = data.custom_domain || data.slug;
-  if (correctSlug && correctSlug !== decodedSlug) {
-    router.replace(`/${correctSlug}/dashboard`);
-    return;
-  }
-
+      // Verificación de seguridad: el negocio encontrado debe pertenecer al usuario autenticado
+      const dbEmail = data.email?.toLowerCase() || "";
+      const authEmail = user.email.toLowerCase();
+      if (dbEmail !== authEmail) {
+        router.push("/login");
+        return;
+      }
       setNegocio(data);
       setLoading(false);
     }

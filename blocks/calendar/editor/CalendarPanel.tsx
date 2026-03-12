@@ -4,7 +4,10 @@
 // Edita las secciones de config_web que CalendarSection y ContactSection consumen.
 
 import { useState } from "react";
-import { Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail, MessageCircle } from "lucide-react";
+import { 
+  Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail, 
+  MessageCircle, CreditCard, Instagram, Phone, Users 
+} from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import ScheduleEditor  from "@/components/editors/ScheduleEditor";
 import type { BlockEditorProps } from "@/types/blocks";
@@ -70,9 +73,19 @@ export default function CalendarPanel({
 
   // ── Equipo ────────────────────────────────────────────────────────────────
   const addMiembro = () => pushToArray("equipo", {
-    id: crypto.randomUUID(), nombre: "Nuevo Profesional",
-    role: "", photoUrl: "", schedule: schedule,
-  });
+  id: crypto.randomUUID(), 
+  nombre: "Nuevo Profesional",
+  role: "Profesional", 
+  photoUrl: "", 
+  email: "",
+  paymentLink: "",
+  aliasCvu: "",
+  telefono: "",
+  instagram: "",
+  allowSimultaneous: false,
+  simultaneousCapacity: 2,
+  schedule: schedule,
+});
 
   const stepDur = (i: number, dir: 1 | -1) => {
     const cur  = Number(servicios.items?.[i]?.duracion ?? 60);
@@ -235,27 +248,49 @@ export default function CalendarPanel({
                 {openWorker === i && (
                   <div className="px-3 pb-3 space-y-3 border-t border-zinc-100 pt-3 animate-in fade-in">
                     <div>
-                      <Label>Nombre</Label>
-                      <Input value={m.nombre}
-                        onChange={(v: string) => updateArray("equipo", i, "nombre", v)} />
+                      <Label>Email para notificaciones</Label>
+                      <Input value={m.email} onChange={(v: string) => updateArray("equipo", i, "email", v)} placeholder="profesional@correo.com" />
                     </div>
-                    <div>
-                      <Label>Rol / Especialidad</Label>
-                      <Input value={m.role}
-                        onChange={(v: string) => updateArray("equipo", i, "role", v)}
-                        placeholder="Ej: Estilista" />
-                    </div>
-                    <ImageUpload label="Foto" value={m.photoUrl}
-                      onChange={url => updateArray("equipo", i, "photoUrl", url)} />
-                    {equipo.scheduleType === "per_worker" && (
+                    
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label>Horario de {m.nombre || "este profesional"}</Label>
-                        <ScheduleEditor
-                          schedule={m.schedule || schedule}
-                          onChange={s => updateArray("equipo", i, "schedule", s)}
-                        />
+                        <Label>Teléfono / WhatsApp</Label>
+                        <Input value={m.telefono} onChange={(v: string) => updateArray("equipo", i, "telefono", v)} placeholder="Ej: 54911..." />
                       </div>
-                    )}
+                      <div>
+                        <Label>Instagram (@usuario)</Label>
+                        <Input value={m.instagram} onChange={(v: string) => updateArray("equipo", i, "instagram", v)} placeholder="@usuario" />
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-2">
+                      <Label><span className="text-indigo-700 flex items-center gap-1"><CreditCard size={12}/> Link de pago (MP)</span></Label>
+                      <Input value={m.paymentLink} onChange={(v: string) => updateArray("equipo", i, "paymentLink", v)} placeholder="https://mpago.la/..." />
+                    </div>
+
+                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-2">
+                      <Label><span className="text-emerald-700">Alias / CBU para Señas</span></Label>
+                      <Input value={m.aliasCvu} onChange={(v: string) => updateArray("equipo", i, "aliasCvu", v)} placeholder="mi.alias.mp" />
+                    </div>
+
+                    <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 space-y-3">
+                      <Toggle 
+                        label="¿Atiende a más de uno a la vez?" 
+                        value={!!m.allowSimultaneous}
+                        onChange={(v) => {
+                          updateArray("equipo", i, "allowSimultaneous", v);
+                          if (v && (!m.simultaneousCapacity || m.simultaneousCapacity < 2)) {
+                            updateArray("equipo", i, "simultaneousCapacity", 2);
+                          }
+                        }}
+                      />
+                      {m.allowSimultaneous && (
+                        <div className="animate-in fade-in">
+                          <Label>Capacidad máxima (personas)</Label>
+                          <Input type="number" min="2" value={m.simultaneousCapacity} onChange={(v: any) => updateArray("equipo", i, "simultaneousCapacity", parseInt(v))} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

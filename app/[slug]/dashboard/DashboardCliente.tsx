@@ -56,9 +56,10 @@ export default function DashboardCliente() {
       // 2. Buscamos por custom_domain o por slug según corresponda
       const searchColumn = decodedSlug.includes(".") ? "custom_domain" : "slug";
 
+      // CORRECCIÓN AQUÍ: Quitamos 'name' y dejamos solo 'nombre_agencia'
       const { data, error } = await supabase
         .from("negocios")
-        .select("*, agencies(name, nombre_agencia)")
+        .select("*, agencies(nombre_agencia)") 
         .eq(searchColumn, decodedSlug)
         .single();
 

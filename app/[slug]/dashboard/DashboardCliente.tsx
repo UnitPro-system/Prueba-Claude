@@ -53,23 +53,43 @@ export default function DashboardCliente() {
       const decodedSlug = decodeURIComponent(rawSlug || "").toLowerCase();
 
       // 2. Determinamos la columna correcta (custom_domain vs slug)
-      const searchColumn = decodedSlug.includes(".") ? "custom_domain" : "slug";
-
       const { data } = await supabase
-        .from("negocios")
-        .select("*, agencies(name, nombre_agencia)")
-        .eq(searchColumn, decodedSlug) // ¡Usamos la columna correcta!
-        .single();
+  .from("negocios")
+  .select("*, agencies(name, nombre_agencia)")
+  .eq("user_id", user.id)
+  .single();
 
-      // 3. Verificamos que exista y que el email coincida (insensible a mayúsculas)
-      const dbEmail = data?.email?.toLowerCase() || "";
-      const authEmail = user.email.toLowerCase();
+  if (!data) {
+    // Fallback: intentar por email (negocios legacy sin user_id)
+    const { data: dataByEmail } = await supabase
+      .from("negocios")
+      .select("*, agencies(name, nombre_agencia)")
+      .ilike("email", user.email)
+      .single();
 
-      if (!data || dbEmail !== authEmail) {
-        console.warn("Fallo de validación cliente. DB Email:", dbEmail, "Auth:", authEmail);
-        router.push("/login");
-        return;
-      }
+    if (!dataByEmail) {
+      router.push("/login");
+      return;
+    }
+
+    // Si el slug de la URL no coincide, redirigir al correcto
+    const correctSlug = dataByEmail.custom_domain || dataByEmail.slug;
+    if (correctSlug && correctSlug !== decodedSlug) {
+      router.replace(`/${correctSlug}/dashboard`);
+      return;
+    }
+
+    setNegocio(dataByEmail);
+    setLoading(false);
+    return;
+  }
+
+  // Si el slug de la URL no coincide con el negocio del usuario, redirigir
+  const correctSlug = data.custom_domain || data.slug;
+  if (correctSlug && correctSlug !== decodedSlug) {
+    router.replace(`/${correctSlug}/dashboard`);
+    return;
+  }
 
       setNegocio(data);
       setLoading(false);

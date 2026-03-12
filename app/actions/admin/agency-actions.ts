@@ -140,3 +140,18 @@ export async function getOrCreateAgencyLanding(
 
   return { success: true, negocio: nuevo };
 }
+
+export async function toggleClientPlanStatus(
+  negocioId: number,
+  currentStatus: string
+): Promise<{ success: boolean; error?: string; newStatus?: string }> {
+  // Si está activo, lo pasamos a suspendido, y viceversa
+  const newStatus = currentStatus === "activo" ? "suspendido" : "activo";
+  
+  const { error } = await supabaseAdmin
+    .from("negocios")
+    .update({ estado_plan: newStatus })
+    .eq("id", negocioId);
+
+  return error ? { success: false, error: error.message } : { success: true, newStatus };
+}

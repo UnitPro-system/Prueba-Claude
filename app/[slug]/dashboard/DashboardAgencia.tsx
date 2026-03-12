@@ -8,7 +8,7 @@ import {
   ExternalLink, MapPin, Clock, Trash2, Puzzle, X,
   CalendarDays, Globe, ChevronRight, ArrowLeft, CheckCircle,
   Layers, Pencil, Save, Phone, KeyRound, Eye, EyeOff,
-  Lock, Settings, Upload, ImageIcon, Mail,
+  Lock, Settings, Upload, ImageIcon, Mail,Pause, Play
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import WebEditor from "./WebEditor";
@@ -19,6 +19,7 @@ import {
   changeClientEmail,
   updateAgencyProfile,
   changeAgencyPassword,
+  toggleClientPlanStatus
 } from "@/app/actions/admin/agency-actions";
 
 const PRIMARY    = "#577a2c";
@@ -67,6 +68,23 @@ export default function DashboardAgencia() {
   const [schedCfg,    setSchedCfg]    = useState({ diaInicio:"Lunes", diaFin:"Viernes", apertura:"09:00", cierre:"18:00" });
   const [creating,    setCreating]    = useState(false);
   const [deletingId,  setDeletingId]  = useState<number|null>(null);
+  const [suspendingId, setSuspendingId] = useState<number|null>(null);
+
+  const handleToggleStatus = async (id: number, currentStatus: string, nombre: string) => {
+    const actionText = currentStatus === "activo" ? "suspender" : "reactivar";
+    if (!window.confirm(`¿Seguro que deseas ${actionText} a "${nombre}"?\n\nSi lo suspendes, puedes bloquear su acceso más adelante.`)) return;
+    
+    setSuspendingId(id);
+    const res = await toggleClientPlanStatus(id, currentStatus);
+    
+    if (res.success) {
+      // Actualizamos el estado local para que la UI se refleje de inmediato
+      setClientes(prev => prev.map(c => c.id === id ? { ...c, estado_plan: res.newStatus } : c));
+    } else {
+      alert("Error al cambiar el estado: " + res.error);
+    }
+    setSuspendingId(null);
+  };
 
   // ── Editor de negocio ─────────────────────────────────────────────────────
   const [editingClient,       setEditingClient]       = useState<any>(null);
@@ -351,6 +369,23 @@ export default function DashboardAgencia() {
                     }`}>
                       {cliente.estado_plan}
                     </span>
+                    {/* Botón Suspender/Reactivar NUEVO */}
+                    <button onClick={() => handleToggleStatus(cliente.id, cliente.estado_plan, cliente.nombre)} 
+                      disabled={suspendingId === cliente.id}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        cliente.estado_plan === "activo" 
+                        ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600" 
+                        : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600"
+                      }`}
+                      title={cliente.estado_plan === "activo" ? "Suspender cliente" : "Reactivar cliente"}>
+                      {suspendingId === cliente.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : cliente.estado_plan === "activo" ? (
+                        <Pause size={14} />
+                      ) : (
+                        <Play size={14} />
+                      )}
+                    </button>
                     {/* Editar — ahora junto al badge, no absoluto */}
                     <button onClick={() => openQE(cliente)}
                       className="p-1.5 text-slate-300 hover:text-[#577a2c] hover:bg-[#577a2c]/10 rounded-lg transition-all"

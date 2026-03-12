@@ -13,12 +13,12 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import WebEditor from "./WebEditor";
 import BlockMarketplace from "@/components/dashboards/BlockMarketplace";
+import LandingAgenciaEditor from "./LandingAgenciaEditor";
 import {
   changeClientPassword,
   changeClientEmail,
   updateAgencyProfile,
   changeAgencyPassword,
-  getOrCreateAgencyLanding,
 } from "@/app/actions/admin/agency-actions";
 
 const PRIMARY    = "#577a2c";
@@ -102,8 +102,7 @@ export default function DashboardAgencia() {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // ── Landing de agencia ────────────────────────────────────────────────────
-  const [agencyLanding,     setAgencyLanding]     = useState<any>(null);
-  const [loadingLanding,    setLoadingLanding]    = useState(false);
+  const [showLandingEditor, setShowLandingEditor] = useState(false);
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { checkSession(); }, []);
@@ -278,22 +277,6 @@ export default function DashboardAgencia() {
     setAgPassSaving(false);
   };
 
-  // ── Landing de agencia ────────────────────────────────────────────────────
-  const handleOpenLanding = async () => {
-    if (!agency) return;
-    if (agencyLanding) { setEditingClient(agencyLanding); return; }
-    setLoadingLanding(true);
-    const res = await getOrCreateAgencyLanding(agency.id, agency.slug, agency.name || agency.nombre_agencia);
-    if (res.success && res.negocio) {
-      if (typeof res.negocio.config_web === "string") {
-        try { res.negocio.config_web = JSON.parse(res.negocio.config_web); } catch { res.negocio.config_web = {}; }
-      }
-      setAgencyLanding(res.negocio);
-      setEditingClient(res.negocio);
-    } else { alert("Error: " + res.error); }
-    setLoadingLanding(false);
-  };
-
   const handleLogout = async () => { await supabase.auth.signOut(); router.push("/login"); router.refresh(); };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#577a2c]" /></div>;
@@ -316,9 +299,9 @@ export default function DashboardAgencia() {
         </div>
         <div className="flex items-center gap-2">
           {/* Mi Landing */}
-          <button onClick={handleOpenLanding} disabled={loadingLanding}
+          <button onClick={() => setShowLandingEditor(true)}
             className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl border border-[#577a2c]/30 text-[#577a2c] hover:bg-[#577a2c]/10 transition-colors">
-            {loadingLanding ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}
+            <Globe size={15} />
             <span className="hidden sm:inline">Mi Landing</span>
           </button>
           {/* Configuración */}
@@ -767,11 +750,22 @@ export default function DashboardAgencia() {
         </div>
       )}
 
-      {/* ── EDITOR (cliente o landing agencia) ───────────────────────────── */}
+      {/* ── EDITOR NEGOCIO ───────────────────────────────────────────────── */}
       {editingClient && (
         <WebEditor initialData={editingClient} model="negocio"
           onClose={() => setEditingClient(null)}
           onSave={() => { setEditingClient(null); cargarClientes(agency.id); }} />
+      )}
+
+      {/* ── EDITOR LANDING AGENCIA ───────────────────────────────────────── */}
+      {showLandingEditor && agency && (
+        <LandingAgenciaEditor
+          agency={agency}
+          onClose={() => setShowLandingEditor(false)}
+          onSaved={() => {
+            // Actualizar el objeto agency local con el nuevo landing_config si es necesario
+          }}
+        />
       )}
     </div>
   );

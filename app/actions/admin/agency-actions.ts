@@ -180,3 +180,27 @@ export async function toggleClientPlanStatus(
 
   return error ? { success: false, error: error.message } : { success: true, newStatus };
 }
+
+// ── Activar / desactivar bloque de un cliente (bypasa RLS) ───────────────────
+export async function toggleClientBlock(
+  negocioId: number,
+  blockId: string,
+  activate: boolean
+): Promise<{ success: boolean; error?: string }> {
+  if (activate) {
+    const { error } = await supabaseAdmin
+      .from("tenant_blocks")
+      .upsert(
+        { negocio_id: negocioId, block_id: blockId, active: true, activated_at: new Date().toISOString(), config: {} },
+        { onConflict: "negocio_id,block_id" }
+      );
+    return error ? { success: false, error: error.message } : { success: true };
+  } else {
+    const { error } = await supabaseAdmin
+      .from("tenant_blocks")
+      .update({ active: false })
+      .eq("negocio_id", negocioId)
+      .eq("block_id", blockId);
+    return error ? { success: false, error: error.message } : { success: true };
+  }
+}

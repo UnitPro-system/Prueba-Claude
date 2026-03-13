@@ -5,6 +5,7 @@
 // Sigue los patrones de UI de ServiceBookingDashboard.tsx
 
 import { useEffect, useState } from "react";
+import { toggleClientBlock } from "@/app/actions/admin/agency-actions";
 import { createClient } from "@/lib/supabase";
 import {
   Globe, CalendarDays, Users, Images, Star, BarChart2,
@@ -103,13 +104,20 @@ export default function BlockMarketplace({
         return;
       }
 
-      const { error } = await supabase
-        .from("tenant_blocks")
-        .update({ active: false })
-        .eq("negocio_id", negocioId)
-        .eq("block_id", blockId);
+      let deactivateError: string | null = null;
+      if (isAgency) {
+        const res = await toggleClientBlock(negocioId, blockId, false);
+        if (!res.success) deactivateError = res.error ?? "Error";
+      } else {
+        const { error } = await supabase
+          .from("tenant_blocks")
+          .update({ active: false })
+          .eq("negocio_id", negocioId)
+          .eq("block_id", blockId);
+        if (error) deactivateError = error.message;
+      }
 
-      if (error) {
+      if (deactivateError) {
         showToast("Error al desactivar el bloque", "error");
       } else {
         setActiveBlockIds((prev) => prev.filter((id) => id !== blockId));
@@ -125,19 +133,21 @@ export default function BlockMarketplace({
         return;
       }
 
-      const { error } = await supabase
-        .from("tenant_blocks")
-        .upsert(
-          {
-            negocio_id: negocioId,
-            block_id: blockId,
-            active: true,
-            activated_at: new Date().toISOString(),
-          },
-          { onConflict: "negocio_id,block_id" }
-        );
+      let activateError: string | null = null;
+      if (isAgency) {
+        const res = await toggleClientBlock(negocioId, blockId, true);
+        if (!res.success) activateError = res.error ?? "Error";
+      } else {
+        const { error } = await supabase
+          .from("tenant_blocks")
+          .upsert(
+            { negocio_id: negocioId, block_id: blockId, active: true, activated_at: new Date().toISOString() },
+            { onConflict: "negocio_id,block_id" }
+          );
+        if (error) activateError = error.message;
+      }
 
-      if (error) {
+      if (activateError) {
         showToast("Error al activar el bloque", "error");
       } else {
         setActiveBlockIds((prev) => [...prev, blockId]);

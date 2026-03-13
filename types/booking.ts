@@ -4,8 +4,8 @@
 export interface BookingPayload {
   service: string;
   serviceName?: string;
-  date: string;           // YYYY-MM-DD
-  time: string;           // HH:mm
+  date?: string;          // YYYY-MM-DD
+  time?: string;          // HH:mm
   start: string;          // ISO string
   end: string;            // ISO string
   clientName: string;

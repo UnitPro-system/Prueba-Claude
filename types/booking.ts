@@ -21,8 +21,8 @@ export interface BookingPayload {
 }
 
 export interface BusyInterval {
-  start: string | undefined;
-  end: string | undefined;
+  start: string | null | undefined;
+  end: string | null | undefined;
 }
 
 export interface ActionResult<T = void> {

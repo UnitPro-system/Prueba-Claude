@@ -11,13 +11,14 @@ import { useRouter, useParams } from 'next/navigation';
 import WebEditor from './WebEditor';
 import BlockMarketplace from '@/components/dashboards/BlockMarketplace';
 import LandingAgenciaEditor from './LandingAgenciaEditor';
-import { toggleClientPlanStatus } from '@/app/actions/admin/agency-actions';
+import { toggleClientPlanStatus, deleteClientComplete } from '@/app/actions/admin/agency-actions';
 import { AgencyClient, AgencyProfile } from '@/types/agency';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import InlineAlert from '@/components/ui/InlineAlert';
 import ClientCreateModal from './components/ClientCreateModal';
 import ClientEditModal from './components/ClientEditModal';
 import AgencySettingsModal from './components/AgencySettingsModal';
+import SectionOrderManager from '@/components/dashboards/SectionOrderManager';
 
 const PRIMARY = '#577a2c';
 
@@ -85,11 +86,8 @@ export default function DashboardAgencia() {
         setConfirmDialog(d => ({ ...d, open: false }));
         setDeletingId(id);
         try {
-          await supabase.from('tenant_blocks').delete().eq('negocio_id', id);
-          await supabase.from('resenas').delete().eq('negocio_id', id);
-          await supabase.from('turnos').delete().eq('negocio_id', id);
-          const { error } = await supabase.from('negocios').delete().eq('id', id);
-          if (error) throw error;
+          const res = await deleteClientComplete(id);
+          if (!res.success) throw new Error(res.error);
           setClientes(prev => prev.filter(c => c.id !== id));
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -274,7 +272,12 @@ export default function DashboardAgencia() {
                 ✕
               </button>
             </div>
-            <div className="p-6"><BlockMarketplace negocioId={blocksPanelNegocio.id} isAgency={true} /></div>
+            <div className="p-6">
+              <BlockMarketplace negocioId={blocksPanelNegocio.id} isAgency={true} />
+              <hr className="my-4 border-slate-200" />
+              <h4 className="font-bold text-slate-700 text-sm mb-3">Orden de secciones</h4>
+              <SectionOrderManager negocioId={blocksPanelNegocio.id} />
+            </div>
           </div>
         </div>
       )}

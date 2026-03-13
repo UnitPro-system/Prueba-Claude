@@ -11,6 +11,7 @@ import type { WebConfig } from "@/types/web-config";
 import { checkAvailability } from "@/app/actions/confirm-booking/check-availability";
 import { createAppointment } from "@/app/actions/confirm-booking/manage-appointment";
 import { getLocalDateString, isDayClosed } from "@/lib/time-slots";
+import { formatDuration } from "@/lib/format-duration";
 
 export default function LandingCliente({ initialData }: { initialData: any }) {
   const supabase = createClient();
@@ -30,7 +31,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   // --- ESTADO WIZARD (AGENDAMIENTO) ---
   const [bookingStep, setBookingStep] = useState(1);
   const [bookingData, setBookingData] = useState<{
-  service: any | null; // Cambiamos string por el objeto completo o null
+  services: any[];
   date: string;
   time: string;
   worker: any | null;
@@ -41,13 +42,12 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   images: string[];
   clientAreaCode: string;
   clientLocalNumber: string;
-  
 }>({
-  service: null, 
-  date: "", 
-  time: "", 
-  clientName: "", 
-  clientPhone: "", 
+  services: [],
+  date: "",
+  time: "",
+  clientName: "",
+  clientPhone: "",
   clientEmail: "",
   message: "",
   images: [],
@@ -62,8 +62,25 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   const [feedbackError, setFeedbackError] = useState("");
   const [showGoogleReviewPrompt, setShowGoogleReviewPrompt] = useState(false);
 
+  // --- DERIVADOS MULTI-SERVICIO ---
+  const svcKey = (s: any) => s.id || s.titulo || s.name;
+  const totalDuration = bookingData.services.reduce((acc, s) => acc + (s.duracion || s.duration || 60), 0) || 60;
+  const totalPrice    = bookingData.services.reduce((acc, s) => acc + Number(s.precio || s.price || 0), 0);
+  const serviceNames  = bookingData.services.map(s => s.titulo || s.name).join(" + ") || "Servicio Agendado";
+
+  const toggleService = (item: any) => {
+    setBookingData(prev => {
+      const exists = prev.services.some(s => svcKey(s) === svcKey(item));
+      return {
+        ...prev,
+        services: exists ? prev.services.filter(s => svcKey(s) !== svcKey(item)) : [...prev.services, item],
+        time: "",
+      };
+    });
+  };
+
   // --- ESTADOS GENERALES ---
-  const [nombreCliente, setNombreCliente] = useState(""); 
+  const [nombreCliente, setNombreCliente] = useState("");
   const [feedbackComentario, setFeedbackComentario] = useState("");
   const [ratingSeleccionado, setRatingSeleccionado] = useState(0);
   const [enviando, setEnviando] = useState(false);
@@ -195,9 +212,10 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
       return;
     }
 
-    if (bookingData.service?.isPromo && bookingData.service?.promoEndDate) {
+    const promoSvc = bookingData.services.find((s: any) => s.isPromo && s.promoEndDate);
+    if (promoSvc) {
       const selectedDate = new Date(`${dateStr}T00:00:00`);
-      const limitDate = new Date(`${bookingData.service.promoEndDate}T23:59:59`);
+      const limitDate = new Date(`${promoSvc.promoEndDate}T23:59:59`);
       if (selectedDate > limitDate) {
         setDateError(`Esta promoción solo es válida hasta el ${limitDate.toLocaleDateString('es-AR')}.`);
         setBookingData(prev => ({ ...prev, date: "", time: "" }));
@@ -246,8 +264,8 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
     }
 
     const slots = [];
-    const serviceDuration = bookingData.service?.duration || bookingData.service?.duracion || 60; 
-    
+    const serviceDuration = totalDuration;
+
     const INTERVAL_STEP = 30;
 
     // 4. Iterar por CADA rango configurado (Mañana, Tarde, etc.)
@@ -330,20 +348,16 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
     e.preventDefault();
     setEnviando(true);
     
-    // CORRECCIÓN 1: Leemos duración de ambos formatos (duration o duracion)
-    const serviceDuration = bookingData.service?.duration || bookingData.service?.duracion || 60;
-    
     const slotStart = new Date(`${bookingData.date}T${bookingData.time}:00`);
-    const slotEnd = new Date(slotStart.getTime() + serviceDuration * 60000);
+    const slotEnd = new Date(slotStart.getTime() + totalDuration * 60000);
 
-    // CORRECCIÓN 2: Leemos el nombre de ambos formatos (name o titulo)
-    const serviceName = bookingData.service?.name || bookingData.service?.titulo || "Servicio Agendado";
+    const serviceName = serviceNames;
 
     const numeroArmado = `+549${bookingData.clientAreaCode}${bookingData.clientLocalNumber}`;
 
     const payload = {
         service: serviceName, 
-        precio: bookingData.service?.price || bookingData.service?.precio || 0, // <--- NUEVO: Enviamos el precio
+        precio: totalPrice,
         date: bookingData.date,
         time: bookingData.time,
         clientName: bookingData.clientName,
@@ -366,7 +380,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
         if ((res as any).eventLink) setEventLink((res as any).eventLink); 
         setMostrarGracias(true);
         setBookingStep(1);
-        setBookingData({ service: null, date: "", time: "", clientName: "", clientPhone: "", clientEmail: "", worker: null, message: "", images: [],clientAreaCode: "", clientLocalNumber: "" });
+        setBookingData({ services: [], date: "", time: "", clientName: "", clientPhone: "", clientEmail: "", worker: null, message: "", images: [], clientAreaCode: "", clientLocalNumber: "" });
     } else {
         setBookingError(res.error || "Error al confirmar la reserva.");
     }
@@ -672,7 +686,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 
                                 <div className="flex flex-row items-center gap-2 text-xs font-bold text-zinc-400 mb-2">
                                     <Clock size={12} />
-                                    <span>{duracion} min</span>
+                                    <span>{formatDuration(duracion)}</span>
                                 </div>
                                 
                                 <p className="leading-relaxed opacity-70 text-sm line-clamp-3">
@@ -1115,7 +1129,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
             {/* PASO 1: SELECCIONAR SERVICIO (CORREGIDO) */}
             {bookingStep === 1 && (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    <p className="font-bold text-zinc-700 mb-2">Selecciona un servicio:</p>
+                    <p className="font-bold text-zinc-700 mb-2">Seleccioná uno o más servicios:</p>
                     
                     {/* FUSIONAMOS SERVICIOS + PROMOS */}
                     {(() => {
@@ -1144,17 +1158,17 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                             const duracion = item.duration || item.duracion || 60;
 
 
+                            const isSelected = bookingData.services.some(s => svcKey(s) === svcKey(item));
                             return (
-                                <button 
+                                <button
                                     key={item.id || i}
-                                    onClick={() => { 
-                                        setBookingData({...bookingData, service: item}); 
-                                        setBookingStep(2); 
-                                    }} 
-                                    className={`w-full p-4 border rounded-xl text-left transition-all group relative overflow-hidden
-                                        ${isPromo 
-                                            ? 'bg-pink-50 border-pink-200 hover:border-pink-400 hover:bg-pink-100' 
-                                            : 'bg-white border-zinc-200 hover:bg-indigo-50 hover:border-indigo-500'
+                                    onClick={() => toggleService(item)}
+                                    className={`w-full p-4 border-2 rounded-xl text-left transition-all group relative overflow-hidden
+                                        ${isSelected
+                                            ? 'border-indigo-500 bg-indigo-50'
+                                            : isPromo
+                                                ? 'bg-pink-50 border-pink-200 hover:border-pink-400 hover:bg-pink-100'
+                                                : 'bg-white border-zinc-200 hover:bg-indigo-50 hover:border-indigo-300'
                                         }
                                     `}
                                 >
@@ -1165,9 +1179,12 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                                     )}
 
                                     <div className="flex justify-between items-center w-full">
-                                        <span className={`font-bold ${isPromo ? 'text-pink-900' : 'text-zinc-900 group-hover:text-indigo-700'}`}>
-                                            {titulo}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {isSelected && <CheckCircle size={14} className="text-indigo-500 shrink-0" />}
+                                            <span className={`font-bold ${isSelected ? 'text-indigo-700' : isPromo ? 'text-pink-900' : 'text-zinc-900 group-hover:text-indigo-700'}`}>
+                                                {titulo}
+                                            </span>
+                                        </div>
                                         {precio && (
                                             <span className={`font-semibold px-2 py-1 rounded text-sm 
                                                 ${isPromo 
@@ -1181,13 +1198,27 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                                     <div className="flex justify-between items-center mt-1">
                                         <span className="text-xs text-zinc-500 truncate max-w-[70%]">{desc}</span>
                                         <span className={`text-xs font-bold flex items-center gap-1 ${isPromo ? 'text-pink-400' : 'text-zinc-400'}`}>
-                                            <Clock size={12}/> {duracion} min
+                                            <Clock size={12}/> {formatDuration(duracion)}
                                         </span>
                                     </div>
                                 </button>
                             );
                         });
                     })()}
+
+                    {bookingData.services.length > 0 && (
+                        <div className="sticky bottom-0 bg-white pt-2 border-t border-zinc-100 mt-2">
+                            <div className="flex justify-between items-center text-xs text-zinc-500 mb-2">
+                                <span>{bookingData.services.length} servicio{bookingData.services.length > 1 ? 's' : ''} · {formatDuration(totalDuration)}</span>
+                                {totalPrice > 0 && <span className="font-bold text-zinc-700">${totalPrice}</span>}
+                            </div>
+                            <button onClick={() => setBookingStep(2)}
+                                className="w-full py-3 text-white font-bold rounded-xl text-sm transition-all"
+                                style={{ backgroundColor: brandColor }}>
+                                Continuar →
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
             {bookingStep === 2 && (
@@ -1198,11 +1229,11 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                     {(() => {
                         // 1. FILTRAMOS EL EQUIPO SEGÚN EL SERVICIO SELECCIONADO
                         const allowedWorkers = (config.equipo?.items || []).filter((worker: any) => {
-                            const requiredIds = bookingData.service?.workerIds;
-                            // Si el servicio no tiene restricciones, pasan todos
-                            if (!requiredIds || requiredIds.length === 0) return true;
-                            // Si tiene restricciones, el ID del trabajador debe estar en la lista
-                            return requiredIds.includes(worker.id);
+                            return bookingData.services.every((s: any) => {
+                                const requiredIds = s.workerIds;
+                                if (!requiredIds || requiredIds.length === 0) return true;
+                                return requiredIds.includes(worker.id);
+                            });
                         });
 
                         // 2. RENDERIZAMOS SI HAY TRABAJADORES PERMITIDOS
@@ -1210,8 +1241,8 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                             return (
                                 <div className="grid gap-3">
                                     
-                                    {/* Mostrar "Cualquiera" SOLO si todos pueden hacer el servicio (sin restricciones) */}
-                                    {(!bookingData.service?.workerIds || bookingData.service?.workerIds.length === 0) && (
+                                    {/* Mostrar "Cualquiera" SOLO si ningún servicio tiene restricciones de profesional */}
+                                    {bookingData.services.every((s: any) => !s.workerIds || s.workerIds.length === 0) && (
                                         <button 
                                             onClick={() => { setBookingData({...bookingData, worker: null}); setBookingStep(3); }}
                                             className="p-4 border border-zinc-200 rounded-xl text-left hover:bg-zinc-50 flex items-center gap-3"

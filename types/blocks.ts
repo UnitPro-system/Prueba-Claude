@@ -45,7 +45,7 @@ export interface BlockEditorProps {
 // ─── IDs ──────────────────────────────────────────────────────────────────────
 export type BlockId =
   | 'resumen' | 'solicitudes' | 'suscripcion' | 'configuracion' | 'bloques'
-  | 'landing'
+  | 'landing' | 'about'
   | 'calendar' | 'crm' | 'gallery' | 'reviews'
   | 'analytics' | 'marketing' | 'payments' | 'chat'
   | 'shop' | 'academy';

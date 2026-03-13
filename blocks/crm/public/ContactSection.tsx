@@ -163,10 +163,10 @@ export default function ContactSection({ negocio, config: blockConfig }: BlockSe
 
             {/* Mapa */}
             <div className={`h-[400px] bg-zinc-100 overflow-hidden shadow-2xl relative ${radiusClass}`}>
-              {negocio.google_maps_link ? (
+              {negocio.direccion ? (
                 <iframe
                   width="100%" height="100%"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(negocio.direccion || "")}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(negocio.direccion)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                   title="Mapa" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-zinc-400">

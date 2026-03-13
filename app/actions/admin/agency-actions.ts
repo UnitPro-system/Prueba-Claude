@@ -62,7 +62,7 @@ export async function updateAgencyProfile(
   data: { nombre?: string; email?: string; logo_url?: string }
 ): Promise<{ success: boolean; error?: string }> {
   const updates: any = {};
-  if (data.nombre)   { updates.name = data.nombre; updates.nombre_agencia = data.nombre; }
+  if (data.nombre)   { updates.nombre_agencia = data.nombre; }
   if (data.logo_url) { updates.logo_url = data.logo_url; }
 
   if (Object.keys(updates).length > 0) {
@@ -139,6 +139,31 @@ export async function getOrCreateAgencyLanding(
   });
 
   return { success: true, negocio: nuevo };
+}
+
+// ── Eliminar negocio completo (datos + usuario Auth) ─────────────────────────
+export async function deleteClientComplete(
+  negocioId: number
+): Promise<{ success: boolean; error?: string }> {
+  // 1. Obtener user_id antes de borrar
+  const { data: neg } = await supabaseAdmin
+    .from("negocios").select("user_id").eq("id", negocioId).single();
+
+  // 2. Borrar datos relacionados en orden por FK
+  await supabaseAdmin.from("tenant_blocks").delete().eq("negocio_id", negocioId);
+  await supabaseAdmin.from("resenas").delete().eq("negocio_id", negocioId);
+  await supabaseAdmin.from("turnos").delete().eq("negocio_id", negocioId);
+
+  const { error } = await supabaseAdmin.from("negocios").delete().eq("id", negocioId);
+  if (error) return { success: false, error: error.message };
+
+  // 3. Borrar usuario de Auth si tiene uno propio (negocios is_agency_site no tienen)
+  if (neg?.user_id) {
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(neg.user_id);
+    if (authErr) return { success: false, error: authErr.message };
+  }
+
+  return { success: true };
 }
 
 export async function toggleClientPlanStatus(

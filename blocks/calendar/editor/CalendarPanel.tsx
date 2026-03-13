@@ -3,7 +3,8 @@
 // Paneles: Servicios · Equipo · Reservas · Horarios
 // Edita las secciones de config_web que CalendarSection y ContactSection consumen.
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import type { RefObject } from "react";
 import { 
   Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail, 
   MessageCircle, CreditCard, Instagram, Phone, Users 
@@ -402,10 +403,56 @@ const DEFAULT_NOTIF = {
   subject: "", body: "", whatsappBody: "", bannerUrl: "",
 };
 
+const AVAILABLE_VARIABLES = [
+  { key: "cliente",             label: "Nombre del cliente" },
+  { key: "servicio",            label: "Servicio" },
+  { key: "fecha",               label: "Fecha" },
+  { key: "hora",                label: "Hora" },
+  { key: "profesional",         label: "Profesional" },
+  { key: "precio_total",        label: "Precio total" },
+  { key: "monto_senia",         label: "Seña" },
+  { key: "link_pago",           label: "Link de pago" },
+  { key: "precio_a_pagar",      label: "Precio a pagar" },
+  { key: "alias",               label: "Alias/CVU" },
+  { key: "telefono_trabajador", label: "Tel. profesional" },
+];
+
+function insertVariable(
+  variable: string,
+  ref: RefObject<HTMLTextAreaElement | null>,
+  currentValue: string,
+  onChange: (v: string) => void
+) {
+  const el = ref.current;
+  const pos = el ? (el.selectionStart ?? currentValue.length) : currentValue.length;
+  const tag = `{{${variable}}}`;
+  onChange(currentValue.slice(0, pos) + tag + currentValue.slice(pos));
+  // Restaurar foco y cursor después del tag insertado
+  setTimeout(() => {
+    if (el) { el.focus(); el.setSelectionRange(pos + tag.length, pos + tag.length); }
+  }, 0);
+}
+
+function VariablesPicker({ onInsert }: { onInsert: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {AVAILABLE_VARIABLES.map(v => (
+        <button key={v.key} type="button" onClick={() => onInsert(v.key)}
+          title={v.label}
+          className="px-2 py-0.5 text-[10px] font-mono bg-zinc-100 hover:bg-[#577a2c]/10 hover:text-[#577a2c] border border-zinc-200 rounded-md transition-colors text-zinc-600">
+          {`{{${v.key}}}`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function NotificationsPanel({ config, updateConfig }: Pick<BlockEditorProps, "config" | "updateConfig">) {
   const [activeType, setActiveType] = useState<"confirmation" | "deposit" | "reminder">("confirmation");
   const notifications = (config.notifications as any) || {};
   const tmpl = { ...DEFAULT_NOTIF, ...(notifications[activeType] || {}) };
+  const emailBodyRef = useRef<HTMLTextAreaElement>(null);
+  const wpBodyRef    = useRef<HTMLTextAreaElement>(null);
 
   const update = (patch: Partial<typeof DEFAULT_NOTIF>) =>
     updateConfig("notifications", activeType, { ...tmpl, ...patch });
@@ -464,21 +511,22 @@ function NotificationsPanel({ config, updateConfig }: Pick<BlockEditorProps, "co
             {tmpl.sendViaEmail !== false && (
               <div>
                 <Label>Mensaje Email (HTML)</Label>
-                <textarea rows={4} value={tmpl.body}
+                <textarea ref={emailBodyRef} rows={4} value={tmpl.body}
                   onChange={e => update({ body: e.target.value })}
                   className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#577a2c]/30 outline-none resize-none text-zinc-900"
                   placeholder="<p>Hola {{cliente}}, tu turno...</p>" />
+                <VariablesPicker onInsert={v => insertVariable(v, emailBodyRef, tmpl.body, body => update({ body }))} />
               </div>
             )}
 
             {tmpl.sendViaWhatsapp && (
               <div>
                 <Label>Mensaje WhatsApp (texto plano)</Label>
-                <textarea rows={3} value={tmpl.whatsappBody}
+                <textarea ref={wpBodyRef} rows={3} value={tmpl.whatsappBody}
                   onChange={e => update({ whatsappBody: e.target.value })}
                   className="w-full p-2 border border-green-200 rounded-lg text-sm bg-green-50/30 focus:ring-2 focus:ring-green-300/30 outline-none resize-none text-zinc-900"
                   placeholder="Hola {{cliente}}, tu turno para {{servicio}}..." />
-                <p className="text-[10px] text-green-600 mt-1">Variables: {"{{cliente}}"}, {"{{servicio}}"}, {"{{fecha}}"}, {"{{hora}}"}</p>
+                <VariablesPicker onInsert={v => insertVariable(v, wpBodyRef, tmpl.whatsappBody, whatsappBody => update({ whatsappBody }))} />
               </div>
             )}
 

@@ -12,6 +12,7 @@ import type { BlockDefinition, BlockId, BlockSharedData } from '@/types/blocks';
 
 // ── SectionComponents (landing pública) ───────────────────────────────────────
 import HeroSection     from '@/blocks/landing/public/HeroSection';
+import AboutSection    from '@/blocks/about/public/AboutSection';
 import CalendarSection from '@/blocks/calendar/public/CalendarSection';
 import GallerySection  from '@/blocks/gallery/public/GallerySection';
 import ReviewsSection  from '@/blocks/reviews/public/ReviewsSection';
@@ -23,6 +24,7 @@ import SolicitudesAdmin   from '@/blocks/platform/admin/SolicitudesAdmin';
 import SuscripcionAdmin   from '@/blocks/platform/admin/SuscripcionAdmin';
 import ConfiguracionAdmin from '@/blocks/platform/admin/ConfiguracionAdmin';
 import BloquesAdmin       from '@/blocks/platform/admin/BloquesAdmin';
+import AboutAdmin         from '@/blocks/about/admin/AboutAdmin';
 import CalendarAdmin      from '@/blocks/calendar/admin/CalendarAdmin';
 import CrmAdmin           from '@/blocks/crm/admin/CrmAdmin';
 import ReviewsAdmin       from '@/blocks/reviews/admin/ReviewsAdmin';
@@ -30,6 +32,7 @@ import MarketingAdmin     from '@/blocks/marketing/admin/MarketingAdmin';
 
 // ── EditorPanels (ModularEditor) ───────────────────────────────────────────────
 import LandingPanel  from '@/blocks/landing/editor/LandingPanel';
+import AboutPanel    from '@/blocks/about/editor/AboutPanel';
 import CalendarPanel from '@/blocks/calendar/editor/CalendarPanel';
 import CrmPanel      from '@/blocks/crm/editor/CrmPanel';
 import GalleryPanel  from '@/blocks/gallery/editor/GalleryPanel';
@@ -102,6 +105,17 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     // EditorPanel engloba identidad + apariencia + portada (siempre visible en editor)
     editorLabel: 'Apariencia & Portada',
     EditorPanel: LandingPanel,
+  },
+
+  about: {
+    id: 'about', name: 'Quiénes Somos',
+    description: 'Sección de presentación con título, texto e imagen.',
+    category: 'core', priceARS: 0, agencyPriceARS: 0, priceUC: 0, agencyPriceUC: 0, dependencies: ['landing'],
+    icon: 'Users', available: true,
+    SectionComponent: AboutSection,
+    AdminComponent:   AboutAdmin,
+    editorLabel: 'Quiénes Somos',
+    EditorPanel: AboutPanel,
   },
 
   // ── FUNCIONALES ───────────────────────────────────────────────────────────

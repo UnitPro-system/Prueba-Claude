@@ -10,6 +10,7 @@ import {
 import { checkAvailability } from "@/app/actions/confirm-booking/check-availability";
 import { createAppointment } from "@/app/actions/confirm-booking/manage-appointment";
 import type { BlockSectionProps } from "@/types/blocks";
+import { formatDuration } from "@/lib/format-duration";
 
 const INTERVAL_STEP = 30;
 
@@ -124,13 +125,6 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
   // ── Duración y precio totales ─────────────────────────────────────────────
   const totalDuration = selectedServices.reduce((acc, s) => acc + Number(s.duracion || s.duration || 60), 0);
   const totalPrice    = selectedServices.reduce((acc, s) => acc + Number(s.precio   || s.price   || 0),  0);
-
-  const formatDuration = (mins: number): string => {
-    if (mins < 60) return `${mins} min`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m > 0 ? `${h} hora${h > 1 ? "s" : ""} y ${m} min` : `${h} hora${h > 1 ? "s" : ""}`;
-  };
 
   // ── Generador de slots (lógica legacy) ────────────────────────────────────
   const generateSlots = (): string[] => {
@@ -340,7 +334,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 mb-2">
-                    <Clock size={12} /><span>{duracion} min</span>
+                    <Clock size={12} /><span>{formatDuration(duracion)}</span>
                   </div>
                   <p className="opacity-70 text-sm line-clamp-3">{desc}</p>
                   <div className={`mt-6 w-full py-2 text-center text-sm font-bold transition-colors ${
@@ -460,7 +454,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                             <div>
                               <p className={`font-bold ${selected ? "text-white" : "text-zinc-900"}`}>{titulo}</p>
                               <span className={`text-xs flex items-center gap-1 mt-0.5 ${selected ? "text-white/80" : "text-zinc-400"}`}>
-                                <Clock size={11} /> {duracion} min
+                                <Clock size={11} /> {formatDuration(duracion)}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">

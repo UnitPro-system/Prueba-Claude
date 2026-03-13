@@ -12,6 +12,7 @@ import type { BlockId } from "@/types/blocks";
 
 const ICON_LABELS: Record<string, string> = {
   landing:   "🏠 Hero / Navbar",
+  about:     "👥 Quiénes Somos",
   calendar:  "📅 Servicios & Turnos",
   gallery:   "🖼️ Galería",
   reviews:   "⭐ Valoraciones",

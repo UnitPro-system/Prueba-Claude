@@ -11,6 +11,7 @@ import type { WebConfig } from "@/types/web-config";
 import { checkAvailability } from "@/app/actions/service-booking/check-availability";
 import { createAppointment } from "@/app/actions/service-booking/manage-appointment";
 import { getLocalDateString, isDayClosed } from "@/lib/time-slots";
+import { formatDuration } from "@/lib/format-duration";
 
 export default function LandingCliente({ initialData }: { initialData: any }) {
   const supabase = createClient();
@@ -591,7 +592,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 
                                 <div className="flex flex-row items-center gap-2 text-xs font-bold text-zinc-400 mb-2">
                                     <Clock size={12} />
-                                    <span>{duracion} min</span>
+                                    <span>{formatDuration(duracion)}</span>
                                 </div>
                                 
                                 <p className="leading-relaxed opacity-70 text-sm line-clamp-3">

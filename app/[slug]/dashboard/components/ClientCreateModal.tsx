@@ -3,13 +3,22 @@
 import { useState } from 'react';
 import {
   X, ArrowLeft, Layers, Globe, ChevronRight, CalendarDays,
-  MapPin, CheckCircle, Loader2
+  CheckCircle, Loader2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import InlineAlert from '@/components/ui/InlineAlert';
 
 const PRIMARY = '#577a2c';
-const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+const DEFAULT_SCHEDULE = {
+  "1": { isOpen: true,  ranges: [{ start: "09:00", end: "18:00" }] },
+  "2": { isOpen: true,  ranges: [{ start: "09:00", end: "18:00" }] },
+  "3": { isOpen: true,  ranges: [{ start: "09:00", end: "18:00" }] },
+  "4": { isOpen: true,  ranges: [{ start: "09:00", end: "18:00" }] },
+  "5": { isOpen: true,  ranges: [{ start: "09:00", end: "18:00" }] },
+  "6": { isOpen: false, ranges: [] },
+  "0": { isOpen: false, ranges: [] },
+};
 
 const SELECTABLE_BLOCKS = [
   { id: 'calendar', name: 'Turnos & Agenda',  desc: 'Reservas online, servicios, equipo',  price: '25 UC/mes' },
@@ -29,7 +38,6 @@ const TEMPLATES = [
 ];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[+\d\s-]{7,}$/;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -52,19 +60,14 @@ export default function ClientCreateModal({ open, agencyId, onClose, onCreated }
 
   const [step, setStep] = useState<'choice' | 'blocks' | 'template' | 'form'>('choice');
   const [selBlocks, setSelBlocks] = useState<string[]>(['landing']);
-  const [newData, setNewData] = useState({
-    email: '', password: '', nombre: '', whatsapp: '', direccion: '', google_maps_link: '',
-  });
-  const [schedCfg, setSchedCfg] = useState({
-    diaInicio: 'Lunes', diaFin: 'Viernes', apertura: '09:00', cierre: '18:00',
-  });
+  const [newData, setNewData] = useState({ email: '', password: '', nombre: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
   const reset = () => {
     setStep('choice');
     setSelBlocks(['landing']);
-    setNewData({ email: '', password: '', nombre: '', whatsapp: '', direccion: '', google_maps_link: '' });
+    setNewData({ email: '', password: '', nombre: '' });
     setError('');
     onClose();
   };
@@ -78,7 +81,6 @@ export default function ClientCreateModal({ open, agencyId, onClose, onCreated }
     if (!newData.nombre.trim()) return 'El nombre del negocio es obligatorio.';
     if (!EMAIL_REGEX.test(newData.email)) return 'El email no es válido.';
     if (newData.password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-    if (newData.whatsapp && !PHONE_REGEX.test(newData.whatsapp)) return 'El WhatsApp no tiene formato válido (ej: +5491112345678).';
     return null;
   };
 
@@ -112,14 +114,11 @@ export default function ClientCreateModal({ open, agencyId, onClose, onCreated }
         nombre: newData.nombre,
         slug,
         category: 'confirm_booking',
-        whatsapp: newData.whatsapp,
-        direccion: newData.direccion,
-        google_maps_link: newData.google_maps_link,
-        horarios: `${schedCfg.diaInicio} a ${schedCfg.diaFin}: ${schedCfg.apertura} - ${schedCfg.cierre}`,
+        horarios: 'Lunes a Viernes: 09:00 - 18:00',
         mensaje_bienvenida: `Bienvenidos a ${newData.nombre}`,
         color_principal: '#000000',
         estado_plan: 'activo',
-        config_web: { hero: { titulo: newData.nombre, mostrar: true } },
+        config_web: { hero: { titulo: newData.nombre, mostrar: true }, schedule: DEFAULT_SCHEDULE },
         system: 'modular',
       }]).select('id').single();
 
@@ -283,50 +282,7 @@ export default function ClientCreateModal({ open, agencyId, onClose, onCreated }
                   onChange={e => setNewData({ ...newData, password: e.target.value })} />
               </Field>
 
-              <div className="h-px bg-slate-100" />
-
-              <Field label="Dirección">
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-slate-400" size={16} />
-                  <input placeholder="Av. Siempre Viva 123"
-                    className="w-full pl-10 p-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c] text-zinc-900"
-                    onChange={e => setNewData({ ...newData, direccion: e.target.value })} />
-                </div>
-              </Field>
-              <Field label="WhatsApp">
-                <input placeholder="+549..." type="tel"
-                  className="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c] text-zinc-900"
-                  onChange={e => setNewData({ ...newData, whatsapp: e.target.value })} />
-              </Field>
-
-              <Field label="Horario">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['diaInicio', 'diaFin'] as const).map(k => (
-                      <div key={k}>
-                        <label className="text-[10px] text-slate-400 font-bold mb-1 block uppercase">
-                          {k === 'diaInicio' ? 'Desde' : 'Hasta'}
-                        </label>
-                        <select className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                          value={schedCfg[k]} onChange={e => setSchedCfg({ ...schedCfg, [k]: e.target.value })}>
-                          {DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['apertura', 'cierre'] as const).map(k => (
-                      <div key={k}>
-                        <label className="text-[10px] text-slate-400 font-bold mb-1 block uppercase">
-                          {k === 'apertura' ? 'Apertura' : 'Cierre'}
-                        </label>
-                        <input type="time" className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                          value={schedCfg[k]} onChange={e => setSchedCfg({ ...schedCfg, [k]: e.target.value })} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Field>
+              <p className="text-xs text-slate-400">Dirección, WhatsApp, horarios y foto se configuran desde el editor del negocio.</p>
 
               {error && <InlineAlert type="error" message={error} onDismiss={() => setError('')} />}
 

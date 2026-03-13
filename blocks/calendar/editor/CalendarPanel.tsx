@@ -225,6 +225,21 @@ export default function CalendarPanel({
               </div>
             </div>
 
+            <div>
+              <Label>Modo de disponibilidad</Label>
+              <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
+                {[["sala_unica","Sala Única"],["simultaneo","Simultáneo"]].map(([val, lbl]) => (
+                  <button key={val} onClick={() => updateConfig("equipo", "availabilityMode", val)}
+                    className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${(equipo.availabilityMode || "sala_unica") === val ? "bg-white shadow text-[#577a2c]" : "text-zinc-500"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-zinc-400 mt-1">
+                Sala Única: un turno ocupa el local completo. Simultáneo: cada profesional maneja su propia agenda.
+              </p>
+            </div>
+
             {(equipo.items || []).map((m: any, i: number) => (
               <div key={m.id || i} className="border border-zinc-200 rounded-xl bg-zinc-50 overflow-hidden">
                 {/* Cabecera */}
@@ -287,9 +302,10 @@ export default function CalendarPanel({
                         <Input value={m.aliasCvu} onChange={(v: string) => updateArray("equipo", i, "aliasCvu", v)} placeholder="mi.alias.mp" />
                       </div>
 
+                      {(equipo.availabilityMode || 'sala_unica') !== 'sala_unica' && (
                       <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 space-y-3">
-                        <Toggle 
-                          label="¿Atiende a más de uno a la vez?" 
+                        <Toggle
+                          label="¿Atiende a más de uno a la vez?"
                           value={!!m.allowSimultaneous}
                           onChange={(v) => {
                             updateArray("equipo", i, "allowSimultaneous", v);
@@ -305,6 +321,7 @@ export default function CalendarPanel({
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                     <ImageUpload label="Foto" value={m.photoUrl}
                       onChange={url => updateArray("equipo", i, "photoUrl", url)} />

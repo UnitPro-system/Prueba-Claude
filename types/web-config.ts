@@ -97,7 +97,8 @@ export interface WorkerItem {
   telefono?: string;           // Teléfono del trabajador
   instagram?: string;
   schedule?: WeeklySchedule;
-  simultaneousCapacity?: number; // Cuántos turnos simultáneos puede atender
+  allowSimultaneous?: boolean;       // Si puede atender más de una persona a la vez
+  simultaneousCapacity?: number;     // Cuántos turnos simultáneos puede atender
 }
 
 export interface TeamSection {
@@ -105,7 +106,7 @@ export interface TeamSection {
   titulo: string;
   subtitulo?: string;
   items: WorkerItem[];
-  availabilityMode?: 'global' | 'per_worker';
+  availabilityMode?: 'global' | 'per_worker' | 'sala_unica' | 'simultaneo';
   scheduleType?: 'unified' | 'per_worker';
 }
 // Union Type para las secciones personalizadas

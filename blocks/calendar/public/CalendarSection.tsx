@@ -176,8 +176,12 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
           for (const b of busySlots) {
             if (start < new Date(b.end) && end > new Date(b.start)) overlapping++;
           }
-          const capacity = bookingData.worker?.allowSimultaneous
-            ? Number(bookingData.worker?.simultaneousCapacity || 2)
+          const availabilityMode = (cfg.equipo as any).availabilityMode || 'sala_unica';
+          const isGlobal = availabilityMode === 'global' || availabilityMode === 'sala_unica';
+          const permiteSimultaneo = bookingData.worker?.allowSimultaneous === true
+            || String(bookingData.worker?.allowSimultaneous) === 'true';
+          const capacity = (!isGlobal && permiteSimultaneo)
+            ? Number(bookingData.worker?.simultaneousCapacity) || 2
             : 1;
           if (overlapping < capacity) slots.push(t);
         }

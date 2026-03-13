@@ -59,7 +59,7 @@ export async function checkAvailability(
         const eventWorkerId = rawId ? String(rawId).trim() : null
         const targetWorkerId = workerIdArg ? String(workerIdArg).trim() : null
 
-        if (availabilityMode === 'global') return true
+        if (availabilityMode === 'global' || availabilityMode === 'sala_unica') return true
 
         // Modo Equipo: evento sin ID bloquea a todos; con ID bloquea solo al profesional coincidente
         if (!eventWorkerId) return true

@@ -11,6 +11,8 @@ import {
   ChevronDown, ChevronUp, Palette, Type, Phone, Layers,
 } from "lucide-react";
 import LandingAgencia, { DEFAULT_LANDING_CONFIG } from "@/app/[slug]/LandingAgencia";
+import InlineAlert from "@/components/ui/InlineAlert";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 interface Service { id: string; titulo: string; descripcion: string; icono: string; }
@@ -45,17 +47,27 @@ function SectionCard({ title, icon, open, onToggle, children }: {
   );
 }
 
-function InputField({ label, value, onChange, type = "text", placeholder = "" }: {
+function InputField({ label, value, onChange, type = "text", placeholder = "", maxLength }: {
   label: string; value: string; onChange: (v: string) => void;
-  type?: string; placeholder?: string;
+  type?: string; placeholder?: string; maxLength?: number;
 }) {
+  const showCounter = maxLength !== undefined && value.length / maxLength >= 0.8;
   return (
     <div>
-      <label className="text-[11px] font-bold text-slate-400 uppercase mb-1 block">{label}</label>
+      <div className="flex justify-between items-center mb-1">
+        <label className="text-[11px] font-bold text-slate-400 uppercase">{label}</label>
+        {showCounter && (
+          <span className={`text-[11px] font-mono ${value.length >= maxLength ? 'text-red-500' : 'text-amber-500'}`}>
+            {value.length}/{maxLength}
+          </span>
+        )}
+      </div>
       {type === "textarea"
         ? <textarea rows={3} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            maxLength={maxLength}
             className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900 resize-none" />
         : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            maxLength={maxLength}
             className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900" />
       }
     </div>
@@ -83,13 +95,27 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
     };
   };
 
-  const [cfg,    setCfg]    = useState<LandingConfig>(initCfg);
+  const initialCfg = initCfg();
+  const [cfg,    setCfg]    = useState<LandingConfig>(initialCfg);
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [openSection, setOpenSection] = useState<string>("hero");
+  const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  const hasUnsavedChanges = JSON.stringify(cfg) !== JSON.stringify(initialCfg);
 
   // Para el preview necesitamos un objeto tipo "agency" con landing_config actualizado
   const previewData = { ...agency, landing_config: cfg };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges) {
+      setConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
 
   // ── Helpers de estado ────────────────────────────────────────────────────
   const setHero    = useCallback((k: keyof LandingConfig["hero"],    v: string) =>
@@ -103,7 +129,7 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
     setCfg(p => ({
       ...p,
       services: [...p.services, {
-        id: Date.now().toString(), titulo: "Nuevo servicio", descripcion: "Descripción del servicio.", icono: "Globe",
+        id: crypto.randomUUID(), titulo: "Nuevo servicio", descripcion: "Descripción del servicio.", icono: "Globe",
       }],
     }));
 
@@ -116,11 +142,12 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
   // ── Guardar ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
+    setSaveError("");
     const { error } = await supabase
       .from("agencies")
       .update({ landing_config: cfg })
       .eq("id", agency.id);
-    if (error) { alert("Error al guardar: " + error.message); }
+    if (error) { setSaveError("Error al guardar: " + error.message); }
     else { setSaved(true); onSaved(); setTimeout(() => setSaved(false), 2000); }
     setSaving(false);
   };
@@ -131,13 +158,24 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
   return (
     <div className="fixed inset-0 z-50 flex bg-slate-100 font-sans overflow-hidden">
 
+      <ConfirmDialog
+        open={confirmClose}
+        title="¿Salir sin guardar?"
+        description="Tenés cambios sin guardar. Si salís ahora, se perderán."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        variant="warning"
+        onConfirm={() => { setConfirmClose(false); onClose(); }}
+        onCancel={() => setConfirmClose(false)}
+      />
+
       {/* ── PANEL IZQUIERDO ─────────────────────────────────────────────── */}
-      <div className="w-full sm:w-[380px] lg:w-[400px] h-full flex flex-col bg-[#ede9dd] border-r border-slate-200 shrink-0">
+      <div className={`w-full sm:w-[380px] lg:w-[400px] h-full flex flex-col bg-[#ede9dd] border-r border-slate-200 shrink-0 ${mobileView === 'preview' ? 'hidden sm:flex' : 'flex'}`}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={onClose}
+            <button onClick={handleClose}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
               <ArrowLeft size={18} />
             </button>
@@ -158,6 +196,29 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
           </button>
         </div>
 
+        {/* Save error */}
+        {saveError && (
+          <div className="px-5 pt-3">
+            <InlineAlert type="error" message={saveError} onDismiss={() => setSaveError("")} />
+          </div>
+        )}
+
+        {/* Mobile tab toggle */}
+        <div className="sm:hidden flex border-b border-slate-200 bg-white shrink-0">
+          <button
+            onClick={() => setMobileView('edit')}
+            className={`flex-1 py-2.5 text-xs font-bold transition-colors ${mobileView === 'edit' ? 'text-[#577a2c] border-b-2 border-[#577a2c]' : 'text-slate-400'}`}
+          >
+            Editar
+          </button>
+          <button
+            onClick={() => setMobileView('preview')}
+            className={`flex-1 py-2.5 text-xs font-bold transition-colors ${mobileView === 'preview' ? 'text-[#577a2c] border-b-2 border-[#577a2c]' : 'text-slate-400'}`}
+          >
+            Preview
+          </button>
+        </div>
+
         {/* Secciones */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
@@ -165,10 +226,12 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
           <SectionCard title="Hero" icon={<Type size={14} />} open={openSection === "hero"} onToggle={() => toggle("hero")}>
             <InputField label="Título principal" value={cfg.hero.titulo}
               onChange={v => setHero("titulo", v)} type="textarea"
-              placeholder="Transformamos negocios con soluciones digitales." />
+              placeholder="Transformamos negocios con soluciones digitales."
+              maxLength={80} />
             <InputField label="Subtítulo" value={cfg.hero.subtitulo}
               onChange={v => setHero("subtitulo", v)} type="textarea"
-              placeholder="Descripción breve de tu agencia." />
+              placeholder="Descripción breve de tu agencia."
+              maxLength={200} />
           </SectionCard>
 
           {/* Colores */}
@@ -205,10 +268,10 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
                   </button>
                 </div>
                 <input value={s.titulo} onChange={e => updateService(s.id, "titulo", e.target.value)}
-                  placeholder="Nombre del servicio"
+                  placeholder="Nombre del servicio" maxLength={50}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900 bg-white" />
                 <textarea rows={2} value={s.descripcion} onChange={e => updateService(s.id, "descripcion", e.target.value)}
-                  placeholder="Descripción"
+                  placeholder="Descripción" maxLength={150}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900 resize-none bg-white" />
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase mb-1 block">Ícono</label>
@@ -283,7 +346,7 @@ export default function LandingAgenciaEditor({ agency, onClose, onSaved }: Props
       </div>
 
       {/* ── PANEL DERECHO — PREVIEW ──────────────────────────────────────── */}
-      <div className="hidden sm:flex flex-1 h-full flex-col overflow-hidden">
+      <div className={`flex-1 h-full flex-col overflow-hidden ${mobileView === 'preview' ? 'flex' : 'hidden sm:flex'}`}>
         <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 shrink-0">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vista previa en vivo</span>
           <div className="flex gap-1.5 ml-auto">

@@ -6,9 +6,11 @@ import { Phone, CheckCircle, X, Star, MessageCircle, ArrowRight, ShieldCheck, Lo
 
 import { SafeHTML } from "@/components/ui/SafeHTML";
 import { Footer } from "@/components/blocks/Footer";
+import InlineAlert from "@/components/ui/InlineAlert";
 import type { WebConfig } from "@/types/web-config";
-import { checkAvailability } from "@/app/actions/confirm-booking/check-availability"; 
-import { createAppointment } from "@/app/actions/confirm-booking/manage-appointment"; 
+import { checkAvailability } from "@/app/actions/confirm-booking/check-availability";
+import { createAppointment } from "@/app/actions/confirm-booking/manage-appointment";
+import { getLocalDateString, isDayClosed } from "@/lib/time-slots";
 
 export default function LandingCliente({ initialData }: { initialData: any }) {
   const supabase = createClient();
@@ -55,7 +57,11 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 });
   const [busySlots, setBusySlots] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  
+  const [dateError, setDateError] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [showGoogleReviewPrompt, setShowGoogleReviewPrompt] = useState(false);
+
   // --- ESTADOS GENERALES ---
   const [nombreCliente, setNombreCliente] = useState(""); 
   const [feedbackComentario, setFeedbackComentario] = useState("");
@@ -168,38 +174,41 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateStr = e.target.value;
     if (!dateStr) return;
+    setDateError("");
 
-    // Chequeo rápido de día cerrado
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const dayIndex = new Date(y, m - 1, d).getDay();
+    // Validar que no sea fecha pasada
+    if (dateStr < getLocalDateString()) {
+      setDateError("No podés seleccionar una fecha pasada.");
+      setBookingData(prev => ({ ...prev, date: "", time: "" }));
+      setBusySlots([]);
+      return;
+    }
+
     const schedule = negocio.config_web?.schedule;
-    
-    // Si existe configuración y el día está cerrado...
-    if (schedule && schedule[String(dayIndex)]?.isOpen === false) {
-        const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-        alert(`El negocio permanece cerrado los ${dias[dayIndex]}. Por favor elige otra fecha.`);
-        // Reseteamos el valor del input (opcional, o dejamos que el usuario lo cambie)
-        setBookingData(prev => ({ ...prev, date: "" })); 
-        setBusySlots([]);
-        return;
+    if (schedule && isDayClosed(dateStr, schedule)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+      const dayIndex = new Date(y, m - 1, d).getDay();
+      setDateError(`El negocio permanece cerrado los ${dias[dayIndex]}. Por favor elegí otra fecha.`);
+      setBookingData(prev => ({ ...prev, date: "", time: "" }));
+      setBusySlots([]);
+      return;
     }
 
     if (bookingData.service?.isPromo && bookingData.service?.promoEndDate) {
-        const selectedDate = new Date(`${dateStr}T00:00:00`);
-        const limitDate = new Date(`${bookingData.service.promoEndDate}T23:59:59`);
-        
-        if (selectedDate > limitDate) {
-            alert(`Esta promoción solo es válida para turnos hasta el ${limitDate.toLocaleDateString('es-AR')}. Por favor elige una fecha anterior.`);
-            setBookingData(prev => ({ ...prev, date: "" })); 
-            setBusySlots([]);
-            return;
-        }
+      const selectedDate = new Date(`${dateStr}T00:00:00`);
+      const limitDate = new Date(`${bookingData.service.promoEndDate}T23:59:59`);
+      if (selectedDate > limitDate) {
+        setDateError(`Esta promoción solo es válida hasta el ${limitDate.toLocaleDateString('es-AR')}.`);
+        setBookingData(prev => ({ ...prev, date: "", time: "" }));
+        setBusySlots([]);
+        return;
+      }
     }
 
-    // Flujo normal
-    setBookingData(prev => ({ ...prev, date: dateStr, time: "" })); 
-    setBusySlots([]); 
-};
+    setBookingData(prev => ({ ...prev, date: dateStr, time: "" }));
+    setBusySlots([]);
+  };
 
   const generateTimeSlots = () => {
     // 1. Obtener fecha y día de la semana de forma segura
@@ -359,14 +368,14 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
         setBookingStep(1);
         setBookingData({ service: null, date: "", time: "", clientName: "", clientPhone: "", clientEmail: "", worker: null, message: "", images: [],clientAreaCode: "", clientLocalNumber: "" });
     } else {
-        alert("Error: " + res.error);
+        setBookingError(res.error || "Error al confirmar la reserva.");
     }
   };
 
   // --- LÓGICA FEEDBACK / LEAD ---
   const handleEnviarFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (ratingSeleccionado === 0) return alert("Por favor, selecciona una puntuación.");
+    if (ratingSeleccionado === 0) { setFeedbackError("Por favor, selecciona una puntuación."); return; }
     setEnviando(true);
 
     // 1. Guardamos SIEMPRE en tu base de datos (para tu control interno)
@@ -380,26 +389,16 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
     setEnviando(false);
     
     if (!error) {
-        setIsFeedbackModalOpen(false); // Cerramos modal
-        
-        // 2. LÓGICA DE REDIRECCIÓN INTELIGENTE
-        if (ratingSeleccionado >= 4 && negocio.google_maps_link) {
-            // Clientes felices (4 o 5) -> Los invitamos a Google Maps
-            const irAGoogle = window.confirm("¡Muchas gracias por tu calificación!\n\n¿Te gustaría ayudarnos publicando esto mismo en Google Maps?");
-            if(irAGoogle) {
-                 window.open(negocio.google_maps_link, '_blank');
-            }
-        } else {
-            // Clientes insatisfechos (1, 2 o 3) -> Solo agradecemos (feedback privado)
-            alert("Gracias por tu opinión. Trabajaremos para mejorar nuestro servicio.");
-        }
-
-        // Limpiamos el formulario
-        setFeedbackComentario(""); 
-        setRatingSeleccionado(0); 
+        setIsFeedbackModalOpen(false);
+        setFeedbackComentario("");
+        setRatingSeleccionado(0);
         setNombreCliente("");
+
+        if (ratingSeleccionado >= 4 && negocio.google_maps_link) {
+            setShowGoogleReviewPrompt(true);
+        }
     } else {
-        alert("Hubo un error al guardar. Intenta nuevamente.");
+        setFeedbackError("Hubo un error al guardar. Intenta nuevamente.");
     }
   };
 
@@ -1264,24 +1263,31 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                      {/* El botón de volver debería llevar al paso 2, no al 1, si viniste de elegir profesional */}
                      <button onClick={() => setBookingStep(2)} className="text-xs text-zinc-400">← Volver</button>
                      
-                    <input 
-                        type="date" 
-                        min={getLocalDateString()} 
-                        className="w-full p-3 border rounded-xl" 
+                    <input
+                        type="date"
+                        min={getLocalDateString()}
+                        className="w-full p-3 border rounded-xl"
                         onChange={handleDateChange}
                     />
-                     
-                     {bookingData.date && (
-                         loadingSlots ? <Loader2 className="animate-spin mx-auto"/> : 
+
+                    {dateError && (
+                        <InlineAlert type="error" message={dateError} onDismiss={() => setDateError("")} />
+                    )}
+
+                     {bookingData.date && !dateError && (
+                         loadingSlots ? <Loader2 className="animate-spin mx-auto"/> :
+                         generateTimeSlots().length === 0 ? (
+                            <p className="text-sm text-center text-zinc-500 py-4">No hay horarios disponibles para este día.</p>
+                         ) :
                          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
                             {generateTimeSlots().map((slot) => (
-                                <button 
-                                    key={slot.time} 
-                                    disabled={!slot.available} 
-                                    onClick={() => { 
-                                        setBookingData({...bookingData, time: slot.time}); 
-                                        setBookingStep(4); // <--- CORRECCIÓN AQUÍ (Antes decía 3)
-                                    }} 
+                                <button
+                                    key={slot.time}
+                                    disabled={!slot.available}
+                                    onClick={() => {
+                                        setBookingData({...bookingData, time: slot.time});
+                                        setBookingStep(4);
+                                    }}
                                     className={`py-2 text-sm rounded-lg border ${slot.available ? 'hover:bg-blue-50 border-zinc-200' : 'bg-zinc-100 text-zinc-300'}`}
                                 >
                                     {slot.time}
@@ -1396,8 +1402,8 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 
                                                 if (error) {
                                                     console.error("Error subiendo imagen:", error);
-                                                    alert(`Error al subir imagen: ${error.message}`);
-                                                    continue; 
+                                                    setBookingError(`Error al subir imagen: ${error.message}`);
+                                                    continue;
                                                 }
 
                                                 if (data) {
@@ -1420,7 +1426,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 
                                         } catch (err) {
                                             console.error("Error inesperado:", err);
-                                            alert("Ocurrió un error inesperado al procesar las imágenes.");
+                                            setBookingError("Ocurrió un error inesperado al procesar las imágenes.");
                                         } finally {
                                             setUploadingImages(false); // Libera el bloqueo
                                         }
@@ -1460,10 +1466,14 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                         </>
                     )}
 
+                    {bookingError && (
+                        <InlineAlert type="error" message={bookingError} onDismiss={() => setBookingError("")} />
+                    )}
+
                     {/* Botón Confirmar */}
-                    <button 
-                        type="submit" 
-                        disabled={enviando || uploadingImages} 
+                    <button
+                        type="submit"
+                        disabled={enviando || uploadingImages}
                         className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 disabled:bg-zinc-300 disabled:cursor-not-allowed transition-colors"
                     >
                         {enviando ? <Loader2 className="animate-spin"/> : (uploadingImages ? "Subiendo fotos..." : "Enviar solicitud de turno")}
@@ -1509,6 +1519,30 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 
       
 
+      {showGoogleReviewPrompt && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2rem] shadow-2xl text-center max-w-sm border border-zinc-100 space-y-4">
+            <p className="text-2xl">⭐</p>
+            <h3 className="text-xl font-bold text-zinc-800">¡Muchas gracias por tu calificación!</h3>
+            <p className="text-sm text-zinc-500">¿Te gustaría ayudarnos publicando tu opinión en Google Maps?</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => { window.open(negocio.google_maps_link, '_blank'); setShowGoogleReviewPrompt(false); }}
+                className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                Sí, con gusto
+              </button>
+              <button
+                onClick={() => setShowGoogleReviewPrompt(false)}
+                className="px-5 py-2 bg-zinc-100 text-zinc-600 text-sm font-semibold rounded-xl hover:bg-zinc-200 transition-colors"
+              >
+                No, gracias
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isFeedbackModalOpen && (
         <Modal onClose={() => setIsFeedbackModalOpen(false)} radiusClass={radiusClass}>
              <h3 className="text-2xl font-bold mb-4 text-center">Tu opinión</h3>
@@ -1518,6 +1552,9 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                  </div>
                  <input required placeholder="Tu Nombre" value={nombreCliente} onChange={e => setNombreCliente(e.target.value)} className="w-full p-3 border rounded-xl"/>
                  <textarea placeholder="Comentario..." value={feedbackComentario} onChange={e => setFeedbackComentario(e.target.value)} className="w-full p-3 border rounded-xl"/>
+                 {feedbackError && (
+                     <InlineAlert type="error" message={feedbackError} onDismiss={() => setFeedbackError("")} />
+                 )}
                  <button type="submit" disabled={enviando} className="w-full bg-zinc-900 text-white font-bold py-3 rounded-xl">{enviando ? <Loader2 className="animate-spin"/> : "Enviar"}</button>
              </form>
         </Modal>

@@ -93,10 +93,11 @@ export interface WorkerItem {
   imagenUrl?: string;
   email?: string;
   paymentLink?: string;
-  aliasCvu?: string;    // Alias/CVU/CBU del trabajador
-  telefono?: string;    // Teléfono del trabajador
+  aliasCvu?: string;           // Alias/CVU/CBU del trabajador
+  telefono?: string;           // Teléfono del trabajador
   instagram?: string;
   schedule?: WeeklySchedule;
+  simultaneousCapacity?: number; // Cuántos turnos simultáneos puede atender
 }
 
 export interface TeamSection {
@@ -124,9 +125,9 @@ export interface LocationSection {
   mostrar: boolean;
 }
 export interface BookingConfig {
-  requestDeposit: boolean;     // ¿Pide seña?
-  depositPercentage?: number;
-  requireManualConfirmation?: boolean;  // Porcentaje (ej: 50)
+  requestDeposit: boolean;           // ¿Pide seña?
+  depositPercentage?: number;        // Porcentaje de seña (ej: 50)
+  requireManualConfirmation?: boolean;
 }
 export interface EmailTemplate {
   enabled: boolean;

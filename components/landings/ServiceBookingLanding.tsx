@@ -6,9 +6,11 @@ import { Phone, CheckCircle, X, Star, MessageCircle, ArrowRight, ShieldCheck, Lo
 
 import { SafeHTML } from "@/components/ui/SafeHTML";
 import { Footer } from "@/components/blocks/Footer";
+import InlineAlert from "@/components/ui/InlineAlert";
 import type { WebConfig } from "@/types/web-config";
-import { checkAvailability } from "@/app/actions/service-booking/check-availability"; 
-import { createAppointment } from "@/app/actions/service-booking/manage-appointment"; 
+import { checkAvailability } from "@/app/actions/service-booking/check-availability";
+import { createAppointment } from "@/app/actions/service-booking/manage-appointment";
+import { getLocalDateString, isDayClosed } from "@/lib/time-slots";
 
 export default function LandingCliente({ initialData }: { initialData: any }) {
   const supabase = createClient();
@@ -45,7 +47,11 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
 });
   const [busySlots, setBusySlots] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  
+  const [dateError, setDateError] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [showGoogleReviewPrompt, setShowGoogleReviewPrompt] = useState(false);
+
   // --- ESTADOS GENERALES ---
   const [nombreCliente, setNombreCliente] = useState(""); 
   const [feedbackComentario, setFeedbackComentario] = useState("");
@@ -144,26 +150,30 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateStr = e.target.value;
     if (!dateStr) return;
+    setDateError("");
 
-    // Chequeo rápido de día cerrado
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const dayIndex = new Date(y, m - 1, d).getDay();
-    const schedule = negocio.config_web?.schedule;
-    
-    // Si existe configuración y el día está cerrado...
-    if (schedule && schedule[String(dayIndex)]?.isOpen === false) {
-        const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-        alert(`El negocio permanece cerrado los ${dias[dayIndex]}. Por favor elige otra fecha.`);
-        // Reseteamos el valor del input (opcional, o dejamos que el usuario lo cambie)
-        setBookingData(prev => ({ ...prev, date: "" })); 
-        setBusySlots([]);
-        return;
+    // Validar que no sea fecha pasada
+    if (dateStr < getLocalDateString()) {
+      setDateError("No podés seleccionar una fecha pasada.");
+      setBookingData(prev => ({ ...prev, date: "", time: "" }));
+      setBusySlots([]);
+      return;
     }
 
-    // Flujo normal
-    setBookingData(prev => ({ ...prev, date: dateStr, time: "" })); 
-    setBusySlots([]); 
-};
+    const schedule = negocio.config_web?.schedule;
+    if (schedule && isDayClosed(dateStr, schedule)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+      const dayIndex = new Date(y, m - 1, d).getDay();
+      setDateError(`El negocio permanece cerrado los ${dias[dayIndex]}. Por favor elegí otra fecha.`);
+      setBookingData(prev => ({ ...prev, date: "", time: "" }));
+      setBusySlots([]);
+      return;
+    }
+
+    setBookingData(prev => ({ ...prev, date: dateStr, time: "" }));
+    setBusySlots([]);
+  };
 
   const generateTimeSlots = () => {
     // 1. Obtener fecha y día de la semana de forma segura
@@ -284,17 +294,17 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
         setBookingStep(1);
         setBookingData({ service: null, date: "", time: "", clientName: "", clientPhone: "", clientEmail: "", worker: null });
     } else {
-        alert("Error: " + res.error);
+        setBookingError(res.error || "Ocurrió un error al confirmar el turno.");
     }
   };
 
   // --- LÓGICA FEEDBACK / LEAD ---
   const handleEnviarFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (ratingSeleccionado === 0) return alert("Por favor, selecciona una puntuación.");
+    if (ratingSeleccionado === 0) { setFeedbackError("Por favor, seleccioná una puntuación."); return; }
+    setFeedbackError("");
     setEnviando(true);
 
-    // 1. Guardamos SIEMPRE en tu base de datos (para tu control interno)
     const { error } = await supabase.from("resenas").insert([{
         negocio_id: negocio.id,
         puntuacion: ratingSeleccionado,
@@ -303,28 +313,20 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
     }]);
 
     setEnviando(false);
-    
+
     if (!error) {
-        setIsFeedbackModalOpen(false); // Cerramos modal
-        
-        // 2. LÓGICA DE REDIRECCIÓN INTELIGENTE
+        setIsFeedbackModalOpen(false);
+
         if (ratingSeleccionado >= 4 && negocio.google_maps_link) {
-            // Clientes felices (4 o 5) -> Los invitamos a Google Maps
-            const irAGoogle = window.confirm("¡Muchas gracias por tu calificación!\n\n¿Te gustaría ayudarnos publicando esto mismo en Google Maps?");
-            if(irAGoogle) {
-                 window.open(negocio.google_maps_link, '_blank');
-            }
-        } else {
-            // Clientes insatisfechos (1, 2 o 3) -> Solo agradecemos (feedback privado)
-            alert("Gracias por tu opinión. Trabajaremos para mejorar nuestro servicio.");
+            // Mostramos el modal de redirección a Google en lugar de window.confirm
+            setShowGoogleReviewPrompt(true);
         }
 
-        // Limpiamos el formulario
-        setFeedbackComentario(""); 
-        setRatingSeleccionado(0); 
+        setFeedbackComentario("");
+        setRatingSeleccionado(0);
         setNombreCliente("");
     } else {
-        alert("Hubo un error al guardar. Intenta nuevamente.");
+        setFeedbackError("Hubo un error al guardar. Intentá nuevamente.");
     }
   };
 
@@ -1015,15 +1017,21 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                      {/* El botón de volver debería llevar al paso 2, no al 1, si viniste de elegir profesional */}
                      <button onClick={() => setBookingStep(2)} className="text-xs text-zinc-400">← Volver</button>
                      
-                    <input 
-                        type="date" 
-                        min={getLocalDateString()} 
-                        className="w-full p-3 border rounded-xl" 
+                    <input
+                        type="date"
+                        min={getLocalDateString()}
+                        className="w-full p-3 border rounded-xl"
                         onChange={handleDateChange}
                     />
-                     
+                    {dateError && <InlineAlert type="warning" message={dateError} onDismiss={() => setDateError("")} className="mt-2" />}
+
                      {bookingData.date && (
-                         loadingSlots ? <Loader2 className="animate-spin mx-auto"/> : 
+                         loadingSlots ? <Loader2 className="animate-spin mx-auto"/> :
+                         generateTimeSlots().length === 0 ? (
+                           <p className="text-sm text-slate-500 text-center py-3 bg-slate-50 rounded-lg mt-2">
+                             No hay turnos disponibles para este día. Probá con otra fecha.
+                           </p>
+                         ) :
                          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
                             {generateTimeSlots().map((slot) => (
                                 <button 
@@ -1052,10 +1060,32 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                      <input required placeholder="Nombre y Apellido" className="w-full p-3 border rounded-xl" onChange={e => setBookingData({...bookingData, clientName: e.target.value})}/>
                      <input required placeholder="Teléfono" className="w-full p-3 border rounded-xl" onChange={e => setBookingData({...bookingData, clientPhone: e.target.value})}/>
                      <input required placeholder="Email" className="w-full p-3 border rounded-xl" onChange={e => setBookingData({...bookingData, clientEmail: e.target.value})}/>
+                     {bookingError && <InlineAlert type="error" message={bookingError} onDismiss={() => setBookingError("")} />}
                      <button type="submit" disabled={enviando} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl flex justify-center gap-2">{enviando ? <Loader2 className="animate-spin"/> : "Confirmar"}</button>
                 </form>
             )}
         </Modal>
+      )}
+
+      {/* MODAL GOOGLE REVIEW */}
+      {showGoogleReviewPrompt && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-md">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-sm">
+            <Star size={40} className="mx-auto text-amber-400 mb-4"/>
+            <h3 className="text-xl font-bold mb-2">¡Muchas gracias por tu calificación!</h3>
+            <p className="text-sm text-zinc-500 mb-6">¿Te gustaría ayudarnos publicando esto mismo en Google Maps?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowGoogleReviewPrompt(false)}
+                className="flex-1 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50">
+                No, gracias
+              </button>
+              <button onClick={() => { window.open(negocio.google_maps_link, '_blank'); setShowGoogleReviewPrompt(false); }}
+                className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-500 rounded-xl text-sm font-bold text-white">
+                Ir a Google
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL EXITO */}
@@ -1080,6 +1110,7 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                  </div>
                  <input required placeholder="Tu Nombre" value={nombreCliente} onChange={e => setNombreCliente(e.target.value)} className="w-full p-3 border rounded-xl"/>
                  <textarea placeholder="Comentario..." value={feedbackComentario} onChange={e => setFeedbackComentario(e.target.value)} className="w-full p-3 border rounded-xl"/>
+                 {feedbackError && <InlineAlert type="warning" message={feedbackError} onDismiss={() => setFeedbackError("")} />}
                  <button type="submit" disabled={enviando} className="w-full bg-zinc-900 text-white font-bold py-3 rounded-xl">{enviando ? <Loader2 className="animate-spin"/> : "Enviar"}</button>
              </form>
         </Modal>

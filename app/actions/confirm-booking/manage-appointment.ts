@@ -5,6 +5,7 @@ import { google } from 'googleapis'
 import { revalidatePath } from 'next/cache'
 import { compileEmailTemplate } from '@/lib/email-helper'
 import { sendWhatsAppNotification } from '@/lib/whatsapp-helper'
+import type { BookingPayload } from '@/types/booking'
 
 
 const supabase = createClient(
@@ -13,7 +14,7 @@ const supabase = createClient(
 )
 
 // --- CREATE ---
-export async function createAppointment(slug: string, bookingData: any) {
+export async function createAppointment(slug: string, bookingData: BookingPayload & { message?: string; images?: string[] }) {
   try {
     // 1. Validaciones iniciales
     const { data: negocio } = await supabase.from('negocios').select('*').eq('slug', slug).single()
@@ -161,9 +162,10 @@ export async function createAppointment(slug: string, bookingData: any) {
     revalidatePath('/dashboard')
     return { success: true, pending: true } // Avisamos al frontend que SÍ quedó pendiente
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error creating request:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }
 
@@ -384,9 +386,10 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
     revalidatePath('/dashboard')
     return { success: true }
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error approving:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }
 
@@ -578,9 +581,10 @@ export async function markDepositPaid(turnoId: string) {
         revalidatePath('/dashboard');
         return { success: true };
 
-    } catch (error: any) {
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
         console.error('Error marking paid:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: msg };
     }
 }
 
@@ -688,9 +692,10 @@ export async function cancelAppointment(appointmentId: string) {
     
     return { success: true }
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error canceling appointment:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }
 
@@ -739,8 +744,9 @@ export async function createManualAppointment(slug: string, bookingData: any) {
 
     revalidatePath('/dashboard')
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error manual booking:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }

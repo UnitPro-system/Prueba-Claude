@@ -2,30 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server"; //
 import { revalidatePath } from "next/cache";
-
-// --- AYUDANTE: Refrescar Token de Google ---
-async function getValidAccessToken(refreshToken: string) {
-  const params = new URLSearchParams();
-  params.append('client_id', process.env.GOOGLE_CLIENT_ID!);
-  params.append('client_secret', process.env.GOOGLE_CLIENT_SECRET!);
-  params.append('refresh_token', refreshToken);
-  params.append('grant_type', 'refresh_token');
-
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params
-  });
-
-  const data = await response.json();
-  
-  if (!response.ok) {
-    console.error("Error refrescando token:", data);
-    throw new Error('No se pudo renovar el permiso de Google Calendar');
-  }
-
-  return data.access_token;
-}
+import { getValidAccessToken } from "@/app/actions/shared/google-auth";
 
 // --- ACCIÓN 1: REPROGRAMAR TURNO ---
 export async function rescheduleBooking(turnoId: string, newDateIso: string) {
@@ -54,11 +31,29 @@ export async function rescheduleBooking(turnoId: string, newDateIso: string) {
     const oldStart = new Date(turno.fecha_inicio);
     const oldEnd = new Date(turno.fecha_fin);
     // Si alguna fecha es inválida, usamos 1 hora por defecto
-    const durationMs = (oldEnd.getTime() && oldStart.getTime()) 
-        ? oldEnd.getTime() - oldStart.getTime() 
+    const durationMs = (oldEnd.getTime() && oldStart.getTime())
+        ? oldEnd.getTime() - oldStart.getTime()
         : 60 * 60 * 1000;
-    
+
     const end = new Date(start.getTime() + durationMs);
+
+    // 3.5 Verificar conflictos en el nuevo horario
+    const conflictRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    if (conflictRes.ok) {
+      const conflictData = await conflictRes.json();
+      const conflicts = (conflictData.items || []).filter(
+        (ev: { transparency?: string; status?: string; id?: string }) =>
+          ev.transparency !== 'transparent' &&
+          ev.status !== 'cancelled' &&
+          ev.id !== turno.google_event_id // Ignorar el evento que estamos reprogramando
+      );
+      if (conflicts.length > 0) {
+        throw new Error('El nuevo horario ya tiene un evento en Google Calendar');
+      }
+    }
 
     // 4. Actualizar en Google Calendar
     const googleRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${turno.google_event_id}`, {
@@ -93,9 +88,10 @@ export async function rescheduleBooking(turnoId: string, newDateIso: string) {
     revalidatePath('/dashboard'); 
     return { success: true };
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error(error);
-    return { success: false, error: error.message };
+    return { success: false, error: msg };
   }
 }
 
@@ -139,7 +135,8 @@ export async function cancelBooking(turnoId: string) {
     revalidatePath('/dashboard');
     return { success: true };
 
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return { success: false, error: msg };
   }
 }

@@ -1,9 +1,12 @@
 'use server'
 
 import { compileEmailTemplate } from '@/lib/email-helper'
+import { sendWhatsAppNotification } from '@/lib/whatsapp-helper'
 import { createClient } from '@supabase/supabase-js'
 import { google } from 'googleapis'
 import { revalidatePath } from 'next/cache'
+import type { BookingPayload } from '@/types/booking'
+import { createGoogleCalendarClient } from '@/app/actions/shared/google-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,7 +14,7 @@ const supabase = createClient(
 )
 
 // --- CREATE ---
-export async function createAppointment(slug: string, bookingData: any) {
+export async function createAppointment(slug: string, bookingData: BookingPayload) {
   try {
     // 1. Validaciones iniciales
     const { data: negocio } = await supabase.from('negocios').select('*').eq('slug', slug).single()
@@ -20,9 +23,7 @@ export async function createAppointment(slug: string, bookingData: any) {
     if (!negocio?.google_refresh_token) throw new Error('Negocio no conectado')
 
     // 2. Auth
-    const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
-    auth.setCredentials({ refresh_token: negocio.google_refresh_token })
-    const calendar = google.calendar({ version: 'v3', auth })
+    const { calendar, gmail: gmailClient, auth } = createGoogleCalendarClient(negocio.google_refresh_token)
     const targetCalendarId = bookingData.calendarId || 'primary';
     const startDateTime = bookingData.start.replace('Z', '');
     const endDateTime = bookingData.end.replace('Z', '');
@@ -183,8 +184,7 @@ export async function createAppointment(slug: string, bookingData: any) {
 
     // >>> CORRECCIÓN: Verificamos si el mail está activado antes de armarlo <<<
     if (emailData) {
-        // Reutilizamos la autenticación que ya tienes instanciada en 'auth'
-        const gmail = google.gmail({ version: 'v1', auth });
+        const gmail = gmailClient;
 
         const utf8Subject = `=?utf-8?B?${Buffer.from(emailData.subject).toString('base64')}?=`;
         const messageParts = [
@@ -211,9 +211,10 @@ export async function createAppointment(slug: string, bookingData: any) {
     revalidatePath('/dashboard') // O la ruta que corresponda
     return { success: true, eventLink: event.data.htmlLink }
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error creating appointment:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }
 
@@ -223,45 +224,79 @@ export async function cancelAppointment(appointmentId: string) {
     // 1. Obtener datos del turno y refresh token del negocio asociado
     const { data: turno, error: turnoError } = await supabase
       .from('turnos')
-      .select('*, negocios(google_refresh_token)')
+      .select('*, negocios(google_refresh_token, whatsapp_access_token, config_web)')
       .eq('id', appointmentId)
       .single()
 
     if (turnoError || !turno) throw new Error('Turno no encontrado')
 
-    // @ts-ignore: Supabase join returns array or object depending on query, assuming object here due to FK
-    const refreshToken = turno.negocios?.google_refresh_token
-    
+    const negocio = turno.negocios as any
+    const refreshToken = negocio?.google_refresh_token
+
     if (!refreshToken) throw new Error('No se pudo conectar con Google Calendar del negocio')
 
     // 2. Auth con Google
-    const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
-        auth.setCredentials({ refresh_token: refreshToken })
-        const calendar = google.calendar({ version: 'v3', auth })
+    const { calendar, gmail } = createGoogleCalendarClient(refreshToken)
 
     // 3. Eliminar de Google Calendar (si tiene ID de evento)
     if (turno.google_event_id) {
-          try {
-            await calendar.events.delete({ calendarId: 'primary', eventId: turno.google_event_id })
-          } catch (gError) { console.warn('Evento ya borrado en Google', gError) }
-        }
+      try {
+        await calendar.events.delete({ calendarId: 'primary', eventId: turno.google_event_id })
+      } catch (gError) { console.warn('Evento ya borrado en Google', gError) }
+    }
 
     // 4. Actualizar estado en Supabase
     const { error: deleteError } = await supabase
       .from('turnos')
-      .update({ estado: 'cancelado' }) 
+      .update({ estado: 'cancelado' })
       .eq('id', appointmentId)
 
     if (deleteError) throw deleteError
 
-    // 5. Revalidar UI
-    revalidatePath('/dashboard') 
-    
+    // 5. Notificaciones de cancelación
+    const fechaLegible = new Date(turno.fecha_inicio).toLocaleString('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+    })
+    const variablesNotificacion = {
+      cliente: turno.cliente_nombre,
+      servicio: turno.servicio,
+      fecha: fechaLegible
+    }
+
+    if (negocio?.whatsapp_access_token && turno.cliente_telefono) {
+      try {
+        await sendWhatsAppNotification(turno.cliente_telefono, 'cancellation', variablesNotificacion, negocio.whatsapp_access_token)
+      } catch (e) { console.error('Error WhatsApp cancelación:', e) }
+    }
+
+    if (turno.cliente_email && negocio?.config_web) {
+      try {
+        const emailData = compileEmailTemplate('cancellation', negocio.config_web, variablesNotificacion)
+        if (emailData) {
+          const utf8Subject = `=?utf-8?B?${Buffer.from(emailData.subject).toString('base64')}?=`
+          const raw = Buffer.from([
+            `To: ${turno.cliente_email}`,
+            'Content-Type: text/html; charset=utf-8',
+            'MIME-Version: 1.0',
+            `Subject: ${utf8Subject}`,
+            '',
+            emailData.html,
+          ].join('\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+          await gmail.users.messages.send({ userId: 'me', requestBody: { raw } })
+        }
+      } catch (e) { console.error('Error email cancelación:', e) }
+    }
+
+    // 6. Revalidar UI
+    revalidatePath('/dashboard')
+
     return { success: true }
 
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error canceling appointment:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }
 export async function createManualAppointment(slug: string, bookingData: any) {
@@ -308,8 +343,9 @@ export async function createManualAppointment(slug: string, bookingData: any) {
 
     revalidatePath('/dashboard')
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error manual booking:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: msg }
   }
 }

@@ -13,8 +13,9 @@ export default function AboutSection({ negocio, config: blockConfig }: BlockSect
   const texto     = (blockConfig?.texto     as string) ?? about.texto     ?? "";
   const imagenUrl = (blockConfig?.imagenUrl as string) ?? about.imagenUrl ?? "";
 
-  const brandColor = negocio?.color_principal || "#577a2c";
-  const bg         = raw.colors?.bg as string | undefined;
+  const brandColor = (raw.colors?.primary as string) || negocio?.color_principal || "#577a2c";
+  const textColor  = (raw.colors?.text    as string) || "#1f2937";
+  const bg         = raw.colors?.secondary as string | undefined;
 
   const radiusMap: Record<string, string> = {
     none: "rounded-none", small: "rounded-lg", medium: "rounded-2xl", large: "rounded-3xl",
@@ -35,7 +36,7 @@ export default function AboutSection({ negocio, config: blockConfig }: BlockSect
               </h2>
             )}
             {texto && (
-              <div className="prose prose-zinc max-w-none text-zinc-600 leading-relaxed">
+              <div className="prose max-w-none leading-relaxed" style={{ color: textColor }}>
                 <SafeHTML html={texto} />
               </div>
             )}

@@ -882,7 +882,6 @@ export default function ConfirmBookingDashboard({ initialData }: { initialData: 
                 }}
                 onSave={async () => {
                     await fetchDashboardData();
-                    setShowEditor(false);
                 }}
             />
         )}

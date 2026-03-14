@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
-import { Save, X, LayoutTemplate, Eye, EyeOff, Loader2, Monitor, Smartphone, ExternalLink, Palette, MousePointerClick, Layout, Layers, MapPin, Clock, PlusCircle, Trash2, Image, FileText, ArrowUp, ArrowDown, Users, DollarSign, CreditCard,Minus, Plus, Mail} from "lucide-react";
+import { Save, X, LayoutTemplate, Eye, EyeOff, Loader2, Monitor, Smartphone, ExternalLink, Palette, MousePointerClick, Layout, Layers, MapPin, Clock, PlusCircle, Trash2, Image, FileText, ArrowUp, ArrowDown, Users, DollarSign, CreditCard, Minus, Plus, Mail, Check } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { Facebook, Instagram, Linkedin, Phone } from "lucide-react";
 
@@ -115,6 +115,7 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
   });
 
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
@@ -233,9 +234,10 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
         linkedin: dbFields.linkedin
     }).eq("id", negocio.id);
 
-    if (error) alert("Error: " + error.message);
     setSaving(false);
-    if (onSave) onSave();
+    if (error) { alert("Error: " + error.message); return; }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   // ACTUALIZADORES DE ESTADO
@@ -1569,18 +1571,18 @@ export default function ConfirmBookingEditor({ negocio, onClose, onSave }: any) 
 
         {/* BOTONES DE ACCIÓN FIJOS (BOTTOM RIGHT) */}
         <div className="fixed bottom-0 right-0 w-[400px] p-5 border-t border-zinc-200 bg-white/95 backdrop-blur-sm flex gap-3 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-            <button 
-                onClick={onClose} 
+            <button
+                onClick={() => { if (onSave) onSave(); onClose(); }}
                 className="px-6 py-3 text-zinc-600 font-bold hover:bg-zinc-100 rounded-xl text-sm transition-colors"
             >
                 Cerrar
             </button>
-            <button 
-                onClick={handleSave} 
-                disabled={saving} 
-                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white font-bold rounded-xl flex justify-center items-center gap-2 shadow-md"
+            <button
+                onClick={handleSave}
+                disabled={saving || saved}
+                className={`flex-1 py-3 active:scale-[0.98] transition-all text-white font-bold rounded-xl flex justify-center items-center gap-2 shadow-md ${saved ? 'bg-green-600 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
             >
-                {saving ? <Loader2 className="animate-spin"/> : <><Save size={18}/> Guardar</>}
+                {saving ? <><Loader2 size={18} className="animate-spin"/> Guardando...</> : saved ? <><Check size={18}/> ¡Guardado!</> : <><Save size={18}/> Guardar</>}
             </button>
         </div>
       </div>

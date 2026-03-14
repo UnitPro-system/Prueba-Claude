@@ -673,9 +673,11 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                                     {titulo}
                                 </h3>
                                 
-                                <p className={`leading-relaxed opacity-70 mb-4 font-medium ${isPromo ? 'text-pink-800' : ''}`}>
-                                    {typeof precio === 'number' || !isNaN(Number(precio)) ? `$${precio}` : precio}
-                                </p>
+                                {precio != null && precio !== "" && Number(precio) !== 0 && (
+                                    <p className={`leading-relaxed opacity-70 mb-4 font-medium ${isPromo ? 'text-pink-800' : ''}`}>
+                                        {typeof precio === 'number' || !isNaN(Number(precio)) ? `$${precio}` : precio}
+                                    </p>
+                                )}
 
                                 {/* INFO DE VENCIMIENTO SI ES PROMO */}
                                 {isPromo && (
@@ -713,8 +715,8 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
             {section.type === 'about' && (
                 <div className="grid md:grid-cols-2 gap-12 items-center">
                     <div className={section.imagenUrl ? 'order-1' : ''}>
-                        <h2 className="text-3xl font-bold mb-6">{section.titulo}</h2>
-                        <SafeHTML as="div" html={section.texto} className="text-lg opacity-80 leading-relaxed whitespace-pre-line" />
+                        <h2 className="text-3xl font-bold mb-6" style={{ color: textColor }}>{section.titulo}</h2>
+                        <SafeHTML as="div" html={section.texto} className="text-lg opacity-80 leading-relaxed whitespace-pre-line" style={{ color: textColor }} />
                     </div>
                     {section.imagenUrl && (
                         <div className={`overflow-hidden shadow-xl h-[400px] ${cardRadius}`}>
@@ -1185,10 +1187,10 @@ export default function LandingCliente({ initialData }: { initialData: any }) {
                                                 {titulo}
                                             </span>
                                         </div>
-                                        {precio && (
-                                            <span className={`font-semibold px-2 py-1 rounded text-sm 
-                                                ${isPromo 
-                                                    ? 'bg-pink-200 text-pink-800' 
+                                        {precio != null && precio !== "" && Number(precio) !== 0 && (
+                                            <span className={`font-semibold px-2 py-1 rounded text-sm
+                                                ${isPromo
+                                                    ? 'bg-pink-200 text-pink-800'
                                                     : 'bg-zinc-100 text-zinc-900 group-hover:bg-indigo-100 group-hover:text-indigo-700'
                                                 }`}>
                                                 {typeof precio === 'number' || !isNaN(Number(precio)) ? `$${precio}` : precio}

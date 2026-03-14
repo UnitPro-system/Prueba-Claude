@@ -325,9 +325,11 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                     </div>
                   )}
                   <h3 className="font-bold text-xl mb-3">{titulo}</h3>
-                  <p className="opacity-70 mb-4 font-medium">
-                    {typeof precio === "number" || !isNaN(Number(precio)) ? `$${precio}` : precio}
-                  </p>
+                  {precio != null && precio !== "" && Number(precio) !== 0 && (
+                    <p className="opacity-70 mb-4 font-medium">
+                      {typeof precio === "number" || !isNaN(Number(precio)) ? `$${precio}` : precio}
+                    </p>
+                  )}
                   {isPromo && (
                     <div className="mb-4 text-xs font-bold text-pink-600 bg-pink-100/50 p-2 rounded-lg text-center border border-pink-100">
                       🔥 Válido hasta el {new Date(service.promoEndDate).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
@@ -458,7 +460,7 @@ export default function CalendarSection({ negocio, config: blockConfig }: BlockS
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {precio != null && precio !== "" && (
+                              {precio != null && precio !== "" && Number(precio) !== 0 && (
                                 <span className={`font-bold text-sm px-2 py-0.5 rounded-lg ${selected ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-900"}`}>
                                   ${precio}
                                 </span>

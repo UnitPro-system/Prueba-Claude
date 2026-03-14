@@ -24,7 +24,6 @@ import SolicitudesAdmin   from '@/blocks/platform/admin/SolicitudesAdmin';
 import SuscripcionAdmin   from '@/blocks/platform/admin/SuscripcionAdmin';
 import ConfiguracionAdmin from '@/blocks/platform/admin/ConfiguracionAdmin';
 import BloquesAdmin       from '@/blocks/platform/admin/BloquesAdmin';
-import AboutAdmin         from '@/blocks/about/admin/AboutAdmin';
 import CalendarAdmin      from '@/blocks/calendar/admin/CalendarAdmin';
 import CrmAdmin           from '@/blocks/crm/admin/CrmAdmin';
 import ReviewsAdmin       from '@/blocks/reviews/admin/ReviewsAdmin';
@@ -113,7 +112,6 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     category: 'core', priceARS: 0, agencyPriceARS: 0, priceUC: 0, agencyPriceUC: 0, dependencies: ['landing'],
     icon: 'Users', available: true,
     SectionComponent: AboutSection,
-    AdminComponent:   AboutAdmin,
     editorLabel: 'Quiénes Somos',
     EditorPanel: AboutPanel,
   },

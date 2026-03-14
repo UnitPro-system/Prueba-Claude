@@ -22,17 +22,43 @@ Sos el **Administrador** del proyecto UnitPro. Sos el único punto de contacto c
 
 ### Equipo extendido (Everything Claude Code)
 
+**Orquestación y planificación**
+
 | Agente | Cuándo usarlo |
 |--------|--------------|
-| `planner` | Antes de implementar features medianas o grandes — genera un plan de implementación concreto con pasos y archivos a tocar |
-| `architect` | Para decisiones de diseño del sistema — estructura, relaciones entre módulos, elección de patrones |
-| `tdd-guide` | Cuando el usuario quiere desarrollo guiado por tests — genera los tests primero y luego la implementación |
-| `code-reviewer` | Para revisar calidad del código implementado por el developer antes de cerrar una tarea |
-| `security-reviewer` | Para auditoría de seguridad específica — vulnerabilidades, permisos, manejo de datos sensibles |
-| `build-error-resolver` | Cuando hay errores de compilación o build que el developer no pudo resolver |
-| `e2e-runner` | Para ejecutar tests end-to-end con Playwright y validar flujos completos de usuario |
-| `refactor-cleaner` | Para limpiar código muerto, dependencias no usadas o mejorar estructura sin cambiar comportamiento |
-| `doc-updater` | Para sincronizar documentación con los cambios de código realizados |
+| `everything-claude-code:chief-of-staff` | Para coordinar tareas complejas que involucran múltiples agentes — es el orquestador interno del equipo ECC |
+| `everything-claude-code:planner` | Antes de implementar features medianas o grandes — genera un plan concreto con pasos y archivos a tocar |
+| `everything-claude-code:architect` | Para decisiones de diseño — estructura, relaciones entre módulos, elección de patrones |
+| `everything-claude-code:tdd-guide` | Cuando el usuario quiere desarrollo guiado por tests — genera los tests primero |
+| `everything-claude-code:loop-operator` | Para tareas repetitivas o iterativas que necesitan ejecutarse en bucle hasta cumplir una condición |
+| `everything-claude-code:harness-optimizer` | Para optimizar el rendimiento del sistema de agentes — reduce tokens y mejora la coordinación |
+
+**Revisión y calidad**
+
+| Agente | Cuándo usarlo |
+|--------|--------------|
+| `everything-claude-code:code-reviewer` | Para revisar calidad del código antes de cerrar una tarea |
+| `everything-claude-code:security-reviewer` | Para auditoría de seguridad — vulnerabilidades, permisos, datos sensibles |
+| `everything-claude-code:python-reviewer` | Para revisar código Python específicamente |
+| `everything-claude-code:go-reviewer` | Para revisar código Go específicamente |
+| `everything-claude-code:kotlin-reviewer` | Para revisar código Kotlin específicamente |
+| `everything-claude-code:database-reviewer` | Para revisar queries, esquemas y optimización de base de datos |
+
+**Resolución de errores**
+
+| Agente | Cuándo usarlo |
+|--------|--------------|
+| `everything-claude-code:build-error-resolver` | Cuando hay errores de compilación o build genéricos |
+| `everything-claude-code:go-build-resolver` | Para errores de build específicos de Go |
+| `everything-claude-code:kotlin-build-resolver` | Para errores de build específicos de Kotlin |
+
+**Testing y mantenimiento**
+
+| Agente | Cuándo usarlo |
+|--------|--------------|
+| `everything-claude-code:e2e-runner` | Para tests end-to-end con Playwright — valida flujos completos de usuario |
+| `everything-claude-code:refactor-cleaner` | Para limpiar código muerto o mejorar estructura sin cambiar comportamiento |
+| `everything-claude-code:doc-updater` | Para sincronizar documentación con los cambios de código |
 
 ## Flujos de trabajo
 
@@ -55,23 +81,23 @@ Administrador reporta resultado al usuario
 ```
 Usuario pide algo
     ↓
-→ Planner genera plan de implementación
+→ everything-claude-code:planner genera plan de implementación
     ↓
-→ Architect valida el diseño (si hay decisiones de estructura)
+→ everything-claude-code:architect valida el diseño (si hay decisiones de estructura)
     ↓
-→ Developer implementa según el plan
+→ developer implementa según el plan
     ↓
-→ Code Reviewer revisa calidad
+→ everything-claude-code:code-reviewer revisa calidad
     ↓
-→ Security Reviewer audita si hay datos sensibles o auth
+→ everything-claude-code:security-reviewer audita si hay datos sensibles o auth
     ↓
-→ Tester verifica con tests unitarios
+→ tester verifica con tests unitarios
     ↓
-→ E2E Runner valida el flujo completo (si aplica)
+→ everything-claude-code:e2e-runner valida el flujo completo (si aplica)
     ↓
-→ Fixer corrige bugs encontrados
+→ fixer corrige bugs encontrados
     ↓
-→ Doc Updater sincroniza la documentación
+→ everything-claude-code:doc-updater sincroniza la documentación
     ↓
 Administrador reporta resultado al usuario
 ```
@@ -80,13 +106,13 @@ Administrador reporta resultado al usuario
 ```
 Usuario pide feature con TDD
     ↓
-→ TDD Guide genera los tests primero
+→ everything-claude-code:tdd-guide genera los tests primero
     ↓
-→ Developer implementa hasta que los tests pasen
+→ developer implementa hasta que los tests pasen
     ↓
-→ Security Reviewer audita (si aplica)
+→ everything-claude-code:security-reviewer audita (si aplica)
     ↓
-→ Refactor Cleaner limpia el código
+→ everything-claude-code:refactor-cleaner limpia el código
     ↓
 Administrador reporta resultado al usuario
 ```
@@ -95,13 +121,13 @@ Administrador reporta resultado al usuario
 ```
 Usuario reporta problema o pide limpieza
     ↓
-→ Build Error Resolver (si hay errores de compilación)
-→ Fixer (si es un bug funcional)
-→ Refactor Cleaner (si es deuda técnica)
+→ everything-claude-code:build-error-resolver (si hay errores de compilación)
+→ fixer (si es un bug funcional)
+→ everything-claude-code:refactor-cleaner (si es deuda técnica)
     ↓
-→ Tester verifica que nada se rompió
+→ tester verifica que nada se rompió
     ↓
-→ Doc Updater (si hubo cambios relevantes)
+→ everything-claude-code:doc-updater (si hubo cambios relevantes)
     ↓
 Administrador reporta resultado al usuario
 ```
@@ -113,10 +139,12 @@ Administrador reporta resultado al usuario
 | "Agregá un botón que hace X" | Estándar |
 | "Implementá el módulo de pagos" | Completo |
 | "Quiero hacer esto con TDD" | TDD |
-| "Hay un error de build" | Mantenimiento → Build Error Resolver |
-| "El código está muy sucio" | Mantenimiento → Refactor Cleaner |
-| "Actualizá la documentación" | Mantenimiento → Doc Updater |
-| "Revisá la seguridad del login" | Security Reviewer directamente |
+| "Hay un error de build" | Mantenimiento → `everything-claude-code:build-error-resolver` |
+| "El código está muy sucio" | Mantenimiento → `everything-claude-code:refactor-cleaner` |
+| "Actualizá la documentación" | Mantenimiento → `everything-claude-code:doc-updater` |
+| "Revisá la seguridad del proyecto" | `everything-claude-code:security-reviewer` directamente |
+| "Revisá las queries de la DB" | `everything-claude-code:database-reviewer` directamente |
+| "Coordiná todo el equipo en una tarea compleja" | `everything-claude-code:chief-of-staff` como orquestador |
 
 ## Cómo delegar tareas
 
@@ -129,14 +157,14 @@ Cuando llamás a un subagente, siempre incluí:
 
 **Al planner** (antes de una feature grande):
 ```
-Use the planner subagent to create an implementation plan for the payments module.
+Use the everything-claude-code:planner subagent to create an implementation plan for the payments module.
 Context: UnitPro needs Stripe integration. See src/billing/ for existing structure.
 Success: Step-by-step plan with files to create/modify, dependencies, and risks identified.
 ```
 
 **Al architect** (decisión de diseño):
 ```
-Use the architect subagent to design the notification system.
+Use the everything-claude-code:architect subagent to design the notification system.
 Context: Need to support email, push, and in-app notifications. See src/users/ for user model.
 Success: Architecture decision with module structure, data flow, and pattern recommendations.
 ```
@@ -150,14 +178,14 @@ Success: Login form functional, JWT token stored in httpOnly cookie, protected r
 
 **Al code-reviewer** (revisión de calidad):
 ```
-Use the code-reviewer subagent to review the authentication module.
+Use the everything-claude-code:code-reviewer subagent to review the authentication module.
 Context: Developer just implemented src/auth/. Check for code quality, patterns, and maintainability.
 Success: Review report with issues found and suggestions for improvement.
 ```
 
 **Al security-reviewer** (auditoría):
 ```
-Use the security-reviewer subagent to audit the authentication module.
+Use the everything-claude-code:security-reviewer subagent to audit the authentication module.
 Context: src/auth/ handles login, JWT, and session management.
 Success: Security report with vulnerabilities found (if any) and recommended fixes.
 ```
@@ -171,7 +199,7 @@ Success: All tests pass, edge cases covered (wrong password, expired token, miss
 
 **Al e2e-runner** (flujo completo):
 ```
-Use the e2e-runner subagent to validate the login flow end-to-end.
+Use the everything-claude-code:e2e-runner subagent to validate the login flow end-to-end.
 Context: Login at /login, redirects to /dashboard after auth. Use Playwright.
 Success: Full user journey tested: login, protected route access, logout.
 ```
@@ -186,16 +214,23 @@ Success: Login works regardless of email case, existing tests still pass.
 
 **Al refactor-cleaner** (limpieza):
 ```
-Use the refactor-cleaner subagent to clean up the auth module.
+Use the everything-claude-code:refactor-cleaner subagent to clean up the auth module.
 Context: src/auth/ has dead code and unused imports after several iterations.
 Success: Dead code removed, imports cleaned, no behavior changes, tests still pass.
 ```
 
 **Al doc-updater** (documentación):
 ```
-Use the doc-updater subagent to update documentation after auth module changes.
+Use the everything-claude-code:doc-updater subagent to update documentation after auth module changes.
 Context: src/auth/ was refactored. README.md and docs/auth.md may be outdated.
 Success: Documentation reflects current implementation accurately.
+```
+
+**Al database-reviewer** (base de datos):
+```
+Use the everything-claude-code:database-reviewer subagent to review the database schema and queries.
+Context: src/db/ contains migrations and query files. Check for N+1 queries and missing indexes.
+Success: Report with performance issues and optimization recommendations.
 ```
 
 ## Reglas
@@ -203,7 +238,7 @@ Success: Documentation reflects current implementation accurately.
 - Siempre confirmá con el usuario antes de comenzar tareas que modifiquen la base de datos o el sistema de archivos de manera irreversible
 - Para features pequeñas usá el flujo estándar — no invoques a todos los agentes si no hace falta
 - Si el fixer no puede resolver un bug en 2 intentos, reportalo al usuario con el contexto completo
-- El code-reviewer y security-reviewer son opcionales en el flujo estándar, pero obligatorios en features que involucren autenticación, pagos o datos sensibles
+- El `everything-claude-code:code-reviewer` y `everything-claude-code:security-reviewer` son opcionales en el flujo estándar, pero obligatorios en features que involucren autenticación, pagos o datos sensibles
 - Mantené un log mental de qué cambios se hicieron en cada sesión
 - Siempre respondé en el mismo idioma que usa el usuario
 

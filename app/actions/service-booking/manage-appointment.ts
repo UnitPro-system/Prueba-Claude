@@ -3,6 +3,7 @@
 import { compileEmailTemplate } from '@/lib/email-helper'
 import { sendWhatsAppNotification } from '@/lib/whatsapp-helper'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { google } from 'googleapis'
 import { revalidatePath } from 'next/cache'
 import type { BookingPayload } from '@/types/booking'
@@ -12,6 +13,24 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+/**
+ * Obtiene el negocio_id del usuario autenticado en la sesión actual.
+ * Retorna null si no hay sesión o el usuario no tiene negocio asociado.
+ */
+async function getAuthenticatedNegocioId(): Promise<number | null> {
+  const serverClient = await createServerClient();
+  const { data: { user } } = await serverClient.auth.getUser();
+  if (!user) return null;
+
+  const { data: negocio } = await supabase
+    .from('negocios')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  return negocio?.id ?? null;
+}
 
 // --- CREATE ---
 export async function createAppointment(slug: string, bookingData: BookingPayload) {
@@ -24,10 +43,7 @@ export async function createAppointment(slug: string, bookingData: BookingPayloa
 
     // 2. Auth
     const { calendar, gmail: gmailClient, auth } = createGoogleCalendarClient(negocio.google_refresh_token)
-    const targetCalendarId = bookingData.calendarId || 'primary';
-    const startDateTime = bookingData.start.replace('Z', '');
-    const endDateTime = bookingData.end.replace('Z', '');
-    const description = `Servicio: ${bookingData.service}\n` +
+    const description =`Servicio: ${bookingData.service}\n` +
                         `Profesional: ${bookingData.workerName || 'Cualquiera'}\n` + // <--- NUEVO
                         `Cliente: ${bookingData.clientName}\nTel: ${bookingData.clientPhone}`;
     const conflictCheck = await calendar.events.list({
@@ -111,21 +127,6 @@ export async function createAppointment(slug: string, bookingData: BookingPayloa
 
     
     const turnoExistente = turnosExistentes && turnosExistentes.length > 0 ? turnosExistentes[0] : null;
-    const turnoData = {
-        negocio_id: negocio.id,
-        cliente_nombre: bookingData.clientName,
-        cliente_telefono: bookingData.clientPhone,
-        cliente_email: bookingData.clientEmail,
-        servicio: bookingData.service,
-        fecha_inicio: bookingData.start,
-        fecha_fin: bookingData.end,
-        google_event_id: event.data.id,
-        estado: 'confirmado',
-        // Podrías agregar una columna 'worker_id' en tu tabla turnos si quieres, pero no es estrictamente necesario si ya está en Google
-    };
-
-
-
     const servicioConProfesional = `${bookingData.service} - ${bookingData.workerName || 'Cualquiera'}`;
     if (turnoExistente) {
   // B. EXISTE: Sobreescribimos ese registro con los datos nuevos
@@ -221,6 +222,10 @@ export async function createAppointment(slug: string, bookingData: BookingPayloa
 // --- CANCEL ---
 export async function cancelAppointment(appointmentId: string) {
   try {
+    // Verificar autenticación y obtener el negocio del usuario autenticado
+    const negocioId = await getAuthenticatedNegocioId();
+    if (negocioId === null) return { success: false, error: 'No autorizado.' };
+
     // 1. Obtener datos del turno y refresh token del negocio asociado
     const { data: turno, error: turnoError } = await supabase
       .from('turnos')
@@ -229,6 +234,9 @@ export async function cancelAppointment(appointmentId: string) {
       .single()
 
     if (turnoError || !turno) throw new Error('Turno no encontrado')
+
+    // Verificar que el turno pertenezca al negocio del usuario autenticado
+    if (turno.negocio_id !== negocioId) return { success: false, error: 'No autorizado.' };
 
     const negocio = turno.negocios as any
     const refreshToken = negocio?.google_refresh_token

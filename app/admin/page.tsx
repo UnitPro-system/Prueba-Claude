@@ -1,49 +1,36 @@
-"use client";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase";
-import { Building2, Store, Users, LogOut, Loader2, TrendingUp } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
+import { Building2, Store, TrendingUp } from "lucide-react";
+import SignOutButton from "./SignOutButton";
 
-// --- CAMBIA ESTO POR TU EMAIL REAL ---
-const SUPER_ADMIN_EMAIL = "franrigoni27@gmail.com"; // O el que uses
+// Email del super-admin leído desde variable de entorno (disponible solo en servidor)
+const SUPER_ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 
-export default function SuperAdminDashboard() {
-  const supabase = createClient();
-  const router = useRouter();
-  const [stats, setStats] = useState({ agencias: 0, negocios: 0, ingresos: 0 });
-  const [agencies, setAgencies] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default async function SuperAdminDashboard() {
+  // Verificación de sesión y ownership en el servidor
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    checkSuperAdmin();
-  }, []);
-
-  async function checkSuperAdmin() {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // Seguridad Frontend (El middleware protege, pero esto es doble capa)
-    if (!user || user.email !== SUPER_ADMIN_EMAIL) {
-      router.push("/login");
-      return;
-    }
-
-    // Cargar datos globales
-    // NOTA: Esto requiere que las políticas RLS permitan al Super Admin hacer SELECT
-    const { data: agenciasData } = await supabase.from("agencies").select("*, negocios(count)");
-    const { count: negociosCount } = await supabase.from("negocios").select("*", { count: 'exact', head: true });
-
-    if (agenciasData) {
-        setAgencies(agenciasData);
-        setStats({
-            agencias: agenciasData.length,
-            negocios: negociosCount || 0,
-            ingresos: agenciasData.length * 29 // Ejemplo: $29 por agencia
-        });
-    }
-    setLoading(false);
+  if (!user || !SUPER_ADMIN_EMAIL || user.email !== SUPER_ADMIN_EMAIL) {
+    redirect("/login");
   }
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin"/></div>;
+  // Cargar datos globales con service role para bypasar RLS
+  const supabaseAdmin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: agenciasData } = await supabaseAdmin.from("agencies").select("*, negocios(count)");
+  const { count: negociosCount } = await supabaseAdmin.from("negocios").select("*", { count: 'exact', head: true });
+
+  const agencies = agenciasData ?? [];
+  const stats = {
+    agencias: agencies.length,
+    negocios: negociosCount || 0,
+    ingresos: agencies.length * 29,
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans">
@@ -54,9 +41,7 @@ export default function SuperAdminDashboard() {
                 <div className="bg-blue-600 p-2 rounded-lg"><Building2 size={20}/></div>
                 <h1 className="font-bold text-lg">Panel Maestro</h1>
             </div>
-            <button onClick={() => supabase.auth.signOut().then(() => router.push("/login"))} className="text-slate-400 hover:text-white flex gap-2 text-sm font-medium transition-colors">
-                <LogOut size={18}/> Salir
-            </button>
+            <SignOutButton />
         </div>
       </header>
 
@@ -115,5 +100,5 @@ function KpiCard({ title, value, icon }: any) {
             </div>
             <div className="p-3 bg-slate-800 rounded-xl">{icon}</div>
         </div>
-    )
+    );
 }

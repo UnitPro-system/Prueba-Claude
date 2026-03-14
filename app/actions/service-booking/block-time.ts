@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { google } from 'googleapis'
 import { revalidatePath } from 'next/cache'
 
@@ -8,6 +9,25 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+/**
+ * Verifica que el slug del negocio pertenezca al usuario autenticado.
+ * Retorna true si tiene ownership, false en caso contrario.
+ */
+async function verifyNegocioSlugOwnership(slug: string): Promise<boolean> {
+  const serverClient = await createServerClient();
+  const { data: { user } } = await serverClient.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from('negocios')
+    .select('id')
+    .eq('slug', slug)
+    .eq('user_id', user.id)
+    .single();
+
+  return !!data;
+}
 
 type BlockData = {
   date: string;       // YYYY-MM-DD
@@ -20,6 +40,10 @@ type BlockData = {
 
 export async function blockTime(slug: string, data: BlockData) {
   try {
+    // Verificar que el usuario autenticado sea dueño del negocio
+    const isOwner = await verifyNegocioSlugOwnership(slug);
+    if (!isOwner) return { success: false, error: 'No autorizado.' };
+
     // 1. Obtener credenciales del negocio
     const { data: negocio } = await supabase
       .from('negocios')

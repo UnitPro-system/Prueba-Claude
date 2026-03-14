@@ -1,8 +1,35 @@
 import { NextResponse } from 'next/server';
+import { createClient as createServerClient } from '@/lib/supabase-server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
     try {
+        // Verificar sesión autenticada
+        const serverClient = await createServerClient();
+        const { data: { user } } = await serverClient.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ success: false, error: 'No autorizado.' }, { status: 401 });
+        }
+
         const { negocioId } = await request.json();
+
+        // Verificar que el negocioId pertenezca al usuario autenticado
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const { data: ownership } = await supabaseAdmin
+            .from('negocios')
+            .select('id')
+            .eq('id', negocioId)
+            .eq('user_id', user.id)
+            .single();
+
+        if (!ownership) {
+            return NextResponse.json({ success: false, error: 'Acceso denegado.' }, { status: 403 });
+        }
+
         const instanceName = `negocio_${negocioId}`;
         
         let apiUrl = process.env.EVOLUTION_API_URL;

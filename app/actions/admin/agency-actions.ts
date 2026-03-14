@@ -1,20 +1,53 @@
 "use server";
 // app/actions/admin/agency-actions.ts
 // Acciones admin para gestionar la agencia: email, contraseña, datos, logo.
-// Usa service role — solo llamar desde contextos autenticados como agencia.
+// Usa service role — requiere sesión autenticada y ownership del recurso.
 
 import { createClient as createAdmin } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase-server";
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Obtiene el usuario autenticado desde la sesión SSR.
+ * Retorna null si no hay sesión válida.
+ */
+async function getAuthenticatedUser() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
+/**
+ * Verifica que el usuario autenticado sea la agencia dueña del negocio dado.
+ * Retorna true si tiene ownership, false en caso contrario.
+ */
+async function verifyNegocioOwnership(negocioId: number, userId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("negocios")
+    .select("id")
+    .eq("id", negocioId)
+    .eq("user_id", userId)
+    .single();
+  return !!data;
+}
+
 // ── Cambiar contraseña del cliente (negocio) ──────────────────────────────────
 export async function changeClientPassword(
   negocioId: number,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Verificar sesión autenticada
+  const user = await getAuthenticatedUser();
+  if (!user) return { success: false, error: "No autorizado." };
+
+  // Verificar que el usuario autenticado sea la agencia dueña del negocio
+  const isOwner = await verifyNegocioOwnership(negocioId, user.id);
+  if (!isOwner) return { success: false, error: "No autorizado." };
+
   if (!newPassword || newPassword.length < 6)
     return { success: false, error: "Mínimo 6 caracteres." };
 
@@ -35,6 +68,14 @@ export async function changeClientEmail(
   negocioId: number,
   newEmail: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Verificar sesión autenticada
+  const user = await getAuthenticatedUser();
+  if (!user) return { success: false, error: "No autorizado." };
+
+  // Verificar que el usuario autenticado sea la agencia dueña del negocio
+  const isOwner = await verifyNegocioOwnership(negocioId, user.id);
+  if (!isOwner) return { success: false, error: "No autorizado." };
+
   if (!newEmail || !newEmail.includes("@"))
     return { success: false, error: "Email inválido." };
 
@@ -61,6 +102,18 @@ export async function updateAgencyProfile(
   userId: string,
   data: { nombre?: string; email?: string; logo_url?: string }
 ): Promise<{ success: boolean; error?: string }> {
+  // Verificar sesión autenticada y que el usuario sea dueño del agencyId
+  const user = await getAuthenticatedUser();
+  if (!user) return { success: false, error: "No autorizado." };
+
+  const { data: agencyCheck } = await supabaseAdmin
+    .from("agencies")
+    .select("id")
+    .eq("id", agencyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!agencyCheck) return { success: false, error: "No autorizado." };
+
   const updates: any = {};
   if (data.nombre)   { updates.nombre_agencia = data.nombre; }
   if (data.logo_url) { updates.logo_url = data.logo_url; }

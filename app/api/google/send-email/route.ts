@@ -1,14 +1,38 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@/lib/supabase-server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
     const { to, subject, message, negocioId } = await req.json();
+
+    // Verificar sesión autenticada
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
+
+    // Verificar que el negocioId pertenezca al usuario autenticado
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: ownership } = await supabaseAdmin
+      .from('negocios')
+      .select('id')
+      .eq('id', negocioId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (!ownership) {
+      return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 });
+    }
 
     // 1. Obtener tokens de Google del negocio
-    const { data: negocio, error } = await supabase
+    const { data: negocio, error } = await supabaseAdmin
       .from('negocios')
       .select('google_access_token, google_refresh_token')
       .eq('id', negocioId)

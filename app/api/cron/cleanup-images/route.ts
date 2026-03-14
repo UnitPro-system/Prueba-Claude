@@ -1,15 +1,20 @@
 // app/api/cron/cleanup-images/route.ts
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
-  // Validación de seguridad para que solo cron-job.org (o tú) pueda ejecutarlo
+  // CRON_SECRET debe estar siempre definido — si no, rechazar con error de configuración
+  if (!process.env.CRON_SECRET) {
+    return new NextResponse('Error de configuración: CRON_SECRET no está definido en el entorno.', { status: 500 });
+  }
+
+  // Validar el secreto en todos los casos (sin condición bypasseable)
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new NextResponse('No autorizado', { status: 401 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const ahora = new Date().toISOString();
 
   try {

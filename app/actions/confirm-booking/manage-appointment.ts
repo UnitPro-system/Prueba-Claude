@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { google } from 'googleapis'
 import { revalidatePath } from 'next/cache'
 import { compileEmailTemplate } from '@/lib/email-helper'
@@ -12,6 +13,24 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+/**
+ * Verifica que el usuario autenticado sea propietario del turno dado.
+ * Retorna el user_id autenticado si tiene acceso, null si no.
+ */
+async function getAuthenticatedNegocioId(): Promise<number | null> {
+  const serverClient = await createServerClient();
+  const { data: { user } } = await serverClient.auth.getUser();
+  if (!user) return null;
+
+  const { data: negocio } = await supabase
+    .from('negocios')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  return negocio?.id ?? null;
+}
 
 // --- CREATE ---
 export async function createAppointment(slug: string, bookingData: BookingPayload & { message?: string; images?: string[] }) {
@@ -171,6 +190,10 @@ export async function createAppointment(slug: string, bookingData: BookingPayloa
 
 export async function approveAppointment(appointmentId: string, finalPrice?: number, finalDuration?: number) {
   try {
+    // Verificar autenticación y obtener el negocio del usuario autenticado
+    const negocioId = await getAuthenticatedNegocioId();
+    if (negocioId === null) return { success: false, error: 'No autorizado.' };
+
     // 1. Obtener datos
     const { data: turno, error: tErr } = await supabase
       .from('turnos')
@@ -179,6 +202,9 @@ export async function approveAppointment(appointmentId: string, finalPrice?: num
       .single()
 
     if (tErr || !turno) throw new Error('Turno no encontrado')
+
+    // Verificar que el turno pertenezca al negocio del usuario autenticado
+    if (turno.negocio_id !== negocioId) return { success: false, error: 'No autorizado.' };
     const negocio = turno.negocios
 
     let finalEndDate = turno.fecha_fin;
@@ -591,6 +617,10 @@ export async function markDepositPaid(turnoId: string) {
 // --- CANCEL ---
 export async function cancelAppointment(appointmentId: string) {
   try {
+    // Verificar autenticación y obtener el negocio del usuario autenticado
+    const negocioId = await getAuthenticatedNegocioId();
+    if (negocioId === null) return { success: false, error: 'No autorizado.' };
+
     // 1. Obtener datos del turno, tokens y configuración web
     const { data: turno, error: turnoError } = await supabase
       .from('turnos')
@@ -599,6 +629,9 @@ export async function cancelAppointment(appointmentId: string) {
       .single()
 
     if (turnoError || !turno) throw new Error('Turno no encontrado')
+
+    // Verificar que el turno pertenezca al negocio del usuario autenticado
+    if (turno.negocio_id !== negocioId) return { success: false, error: 'No autorizado.' };
 
     // Extraemos los datos del negocio
     const negocio = turno.negocios as any;

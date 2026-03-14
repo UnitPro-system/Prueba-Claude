@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
-import { createClient } from '@supabase/supabase-js'; // O tu cliente de supabase configurado
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'; // Importante para evitar caché
@@ -7,25 +8,44 @@ export const dynamic = 'force-dynamic'; // Importante para evitar caché
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.NEXT_PUBLIC_BASE_URL // O tu URL hardcodeada: https://unitpro-system.vercel.app/api/google/callback
+  process.env.NEXT_PUBLIC_BASE_URL
 );
 
 export async function POST(request: Request) {
   try {
+    // Verificar sesión autenticada antes de procesar la solicitud
+    const serverClient = await createServerClient();
+    const { data: { user } } = await serverClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { businessId, leadName, leadEmail, startTime, endTime } = body;
 
-    // 1. Iniciar Supabase (asegúrate de usar tu cliente admin si es necesario para leer tokens)
+    // Iniciar Supabase admin para consultas privilegiadas
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY! // Usamos service role para acceder a datos sensibles seguro
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. Obtener el refresh_token del negocio
+    // Verificar que el businessId pertenezca al usuario autenticado
+    const { data: ownership } = await supabase
+      .from('negocios')
+      .select('id')
+      .eq('id', businessId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (!ownership) {
+      return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 });
+    }
+
+    // Obtener el refresh_token del negocio
     const { data: negocio, error } = await supabase
       .from('negocios')
       .select('google_refresh_token')
-      .eq('id', businessId) // O como identifiques al negocio
+      .eq('id', businessId)
       .single();
 
     if (error || !negocio?.google_refresh_token) {

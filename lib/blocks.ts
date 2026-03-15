@@ -193,6 +193,39 @@ export async function deactivateBlock(
 }
 
 /**
+ * Activar múltiples bloques en batch durante el onboarding.
+ * Usa el browser client porque se llama desde un Client Component.
+ * Solo activa bloques que estén disponibles en el registry.
+ */
+export async function activateBlocksBatch(
+  negocioId: number,
+  blockIds: BlockId[]
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createBrowserClient();
+
+  // Filter out blocks that are not available in the registry.
+  const validIds = blockIds.filter(id => BLOCKS_REGISTRY[id]?.available !== false);
+
+  if (validIds.length === 0) return { success: true };
+
+  const rows = validIds.map(blockId => ({
+    negocio_id: negocioId,
+    block_id: blockId,
+    active: true,
+  }));
+
+  const { error } = await supabase
+    .from('tenant_blocks')
+    .upsert(rows, { onConflict: 'negocio_id,block_id' });
+
+  if (error) {
+    console.error('[blocks] activateBlocksBatch error:', error);
+    return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+
+/**
  * Actualizar la configuración de un bloque específico.
  * Útil para guardar settings del bloque (ej: config del calendario).
  */

@@ -17,6 +17,7 @@ import CalendarSection from '@/blocks/calendar/public/CalendarSection';
 import GallerySection  from '@/blocks/gallery/public/GallerySection';
 import ReviewsSection  from '@/blocks/reviews/public/ReviewsSection';
 import ContactSection  from '@/blocks/crm/public/ContactSection';
+import ShopSection     from '@/blocks/shop/public/ShopSection';
 
 // ── AdminComponents (tabs del dashboard) ──────────────────────────────────────
 import ResumenAdmin       from '@/blocks/platform/admin/ResumenAdmin';
@@ -27,7 +28,12 @@ import BloquesAdmin       from '@/blocks/platform/admin/BloquesAdmin';
 import CalendarAdmin      from '@/blocks/calendar/admin/CalendarAdmin';
 import CrmAdmin           from '@/blocks/crm/admin/CrmAdmin';
 import ReviewsAdmin       from '@/blocks/reviews/admin/ReviewsAdmin';
+import AnalyticsAdmin     from '@/blocks/analytics/admin/AnalyticsAdmin';
 import MarketingAdmin     from '@/blocks/marketing/admin/MarketingAdmin';
+import ShopAdmin          from '@/blocks/shop/admin/ShopAdmin';
+import AcademySection from '@/blocks/academy/public/AcademySection';
+import AcademyAdmin   from '@/blocks/academy/admin/AcademyAdmin';
+import AcademyPanel   from '@/blocks/academy/editor/AcademyPanel';
 
 // ── EditorPanels (ModularEditor) ───────────────────────────────────────────────
 import LandingPanel  from '@/blocks/landing/editor/LandingPanel';
@@ -35,6 +41,7 @@ import AboutPanel    from '@/blocks/about/editor/AboutPanel';
 import CalendarPanel from '@/blocks/calendar/editor/CalendarPanel';
 import CrmPanel      from '@/blocks/crm/editor/CrmPanel';
 import GalleryPanel  from '@/blocks/gallery/editor/GalleryPanel';
+import ShopPanel      from '@/blocks/shop/editor/ShopPanel';
 
 // ─── Lógica de visibilidad para "solicitudes" ─────────────────────────────────
 function solicitudesVisible(shared: BlockSharedData, negocio: any): boolean {
@@ -157,6 +164,7 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
     id: 'analytics', name: 'Analytics', description: 'Métricas de visitas y conversión.',
     category: 'marketing', priceARS: 1500, agencyPriceARS: 1050, priceUC: 15, agencyPriceUC: 11, dependencies: [],
     icon: 'BarChart2', available: true, adminOrder: 7,
+    AdminComponent: AnalyticsAdmin,
   },
   marketing: {
     id: 'marketing', name: 'Marketing', description: 'Campañas y comunicación con clientes.',
@@ -176,13 +184,24 @@ export const BLOCKS_REGISTRY: Record<BlockId, BlockDefinition> = {
   },
   shop: {
     id: 'shop', name: 'Tienda Online', description: 'Catálogo de productos y carrito.',
-    category: 'commerce', priceARS: 4000, agencyPriceARS: 2800, priceUC: 40, agencyPriceUC: 28, dependencies: ['payments'],
-    icon: 'ShoppingCart', available: false,
+    category: 'commerce', priceARS: 4000, agencyPriceARS: 2800, priceUC: 40, agencyPriceUC: 28,
+    dependencies: ['payments'],
+    icon: 'ShoppingCart', available: true,
+    adminOrder: 8,
+    SectionComponent: ShopSection,
+    AdminComponent:   ShopAdmin,
+    editorLabel: 'Tienda',
+    EditorPanel: ShopPanel,
   },
   academy: {
     id: 'academy', name: 'Academia', description: 'Cursos y contenido educativo.',
     category: 'commerce', priceARS: 3500, agencyPriceARS: 2450, priceUC: 35, agencyPriceUC: 25, dependencies: ['payments'],
-    icon: 'GraduationCap', available: false,
+    icon: 'GraduationCap', available: true,
+    adminOrder: 12,
+    SectionComponent: AcademySection,
+    AdminComponent:   AcademyAdmin,
+    editorLabel: 'Academia & Cursos',
+    EditorPanel: AcademyPanel,
   },
 };
 // ─── Helpers del registry ─────────────────────────────────────────────────────

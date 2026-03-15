@@ -29,7 +29,7 @@ interface AgencySettingsModalProps {
 export default function AgencySettingsModal({ open, agency, onClose, onSaved }: AgencySettingsModalProps) {
   const supabase = createClient();
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<'perfil' | 'pass'>('perfil');
+  const [tab, setTab] = useState<'perfil' | 'pass' | 'marca'>('perfil');
 
   // Perfil
   const [cfgData, setCfgData] = useState({
@@ -47,6 +47,21 @@ export default function AgencySettingsModal({ open, agency, onClose, onSaved }: 
   const [showPass, setShowPass] = useState(false);
   const [passStatus, setPassStatus] = useState<SaveStatus>('idle');
   const [passError, setPassError] = useState('');
+
+  // Whitelabel (Marca Blanca)
+  const [wlData, setWlData] = useState({
+    name: (agency.whitelabel_config?.name) || agency.name || agency.nombre_agencia || '',
+    primaryColor: agency.whitelabel_config?.primaryColor || '#577a2c',
+    logoUrl: agency.whitelabel_config?.logoUrl || '',
+    domain: agency.whitelabel_config?.domain || '',
+    favicon: agency.whitelabel_config?.favicon || '',
+  });
+  const [wlStatus, setWlStatus] = useState<SaveStatus>('idle');
+  const [wlError, setWlError] = useState('');
+  const [uploadingWlLogo, setUploadingWlLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const wlLogoRef = useRef<HTMLInputElement>(null);
+  const faviconRef = useRef<HTMLInputElement>(null);
 
   if (!open) return null;
 
@@ -66,6 +81,55 @@ export default function AgencySettingsModal({ open, agency, onClose, onSaved }: 
     }
     setUploadingLogo(false);
     e.target.value = '';
+  };
+
+  const handleUploadWlLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingWlLogo(true);
+    const ext = file.name.split('.').pop();
+    const path = `agency-logos/${agency.id}/wl-logo-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('sites').upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from('sites').getPublicUrl(path);
+      setWlData(p => ({ ...p, logoUrl: data.publicUrl }));
+    }
+    setUploadingWlLogo(false);
+    e.target.value = '';
+  };
+
+  const handleUploadFavicon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFavicon(true);
+    const ext = file.name.split('.').pop();
+    const path = `agency-logos/${agency.id}/favicon-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('sites').upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from('sites').getPublicUrl(path);
+      setWlData(p => ({ ...p, favicon: data.publicUrl }));
+    }
+    setUploadingFavicon(false);
+    e.target.value = '';
+  };
+
+  const handleSaveWhitelabel = async () => {
+    setWlError('');
+    setWlStatus('saving');
+    const { error } = await supabase
+      .from('agencies')
+      .update({ whitelabel_config: wlData })
+      .eq('id', agency.id);
+    if (!error) {
+      setWlStatus('saved');
+      onSaved({ whitelabel_config: wlData });
+      // Invalidate whitelabel cache so next load picks up the new config
+      try { localStorage.removeItem(`unitpro_wl_${agency.id}`); } catch {}
+      setTimeout(() => setWlStatus('idle'), 2000);
+    } else {
+      setWlError(error.message);
+      setWlStatus('error');
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -127,6 +191,7 @@ export default function AgencySettingsModal({ open, agency, onClose, onSaved }: 
           {([
             { id: 'perfil' as const, label: 'Perfil', icon: <Settings size={12} /> },
             { id: 'pass' as const,  label: 'Contraseña', icon: <KeyRound size={12} /> },
+            { id: 'marca' as const, label: 'Marca Blanca', icon: <span style={{fontSize:10}}>🎨</span> },
           ]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${tab === t.id ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -228,6 +293,91 @@ export default function AgencySettingsModal({ open, agency, onClose, onSaved }: 
                 disabled={newPass.length < 8}
                 idleLabel="Cambiar contraseña"
                 savedLabel="¡Listo!"
+                className="flex-1 py-3 justify-center"
+              />
+            </div>
+          </>
+        )}
+        {/* Tab: Marca Blanca */}
+        {tab === 'marca' && (
+          <>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="flex items-start gap-3 p-3 bg-[#577a2c]/5 border border-[#577a2c]/20 rounded-xl">
+                <span className="text-sm">🎨</span>
+                <p className="text-xs text-zinc-600">Personalizá la plataforma con tu marca. Los negocios de tu agencia verán tu logo y colores.</p>
+              </div>
+
+              <Field label="Nombre de la plataforma">
+                <input type="text" value={wlData.name}
+                  onChange={e => setWlData(p => ({ ...p, name: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
+                  placeholder="Ej: MiAgencia Pro" />
+              </Field>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Color principal</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={wlData.primaryColor}
+                    onChange={e => setWlData(p => ({ ...p, primaryColor: e.target.value }))}
+                    className="w-12 h-12 rounded-xl border border-slate-200 cursor-pointer p-1" />
+                  <input type="text" value={wlData.primaryColor}
+                    onChange={e => setWlData(p => ({ ...p, primaryColor: e.target.value }))}
+                    className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900"
+                    placeholder="#577a2c" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Logo de la plataforma</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 shrink-0">
+                    {wlData.logoUrl
+                      ? <img src={wlData.logoUrl} alt="wl logo" className="w-full h-full object-contain" />
+                      : <ImageIcon size={20} className="text-slate-300" />}
+                  </div>
+                  <button onClick={() => wlLogoRef.current?.click()} disabled={uploadingWlLogo}
+                    className="flex items-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:border-[#577a2c] hover:text-[#577a2c] transition-all">
+                    {uploadingWlLogo ? <><Loader2 size={14} className="animate-spin" />Subiendo...</> : <><Upload size={14} />Subir logo</>}
+                  </button>
+                  <input ref={wlLogoRef} type="file" accept="image/*" className="hidden" onChange={handleUploadWlLogo} />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Favicon</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 shrink-0">
+                    {wlData.favicon
+                      ? <img src={wlData.favicon} alt="favicon" className="w-full h-full object-contain" />
+                      : <ImageIcon size={14} className="text-slate-300" />}
+                  </div>
+                  <button onClick={() => faviconRef.current?.click()} disabled={uploadingFavicon}
+                    className="flex items-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:border-[#577a2c] hover:text-[#577a2c] transition-all">
+                    {uploadingFavicon ? <><Loader2 size={14} className="animate-spin" />Subiendo...</> : <><Upload size={14} />Subir favicon</>}
+                  </button>
+                  <input ref={faviconRef} type="file" accept="image/*" className="hidden" onChange={handleUploadFavicon} />
+                </div>
+              </div>
+
+              <Field label="Dominio personalizado (opcional)">
+                <input type="text" value={wlData.domain}
+                  onChange={e => setWlData(p => ({ ...p, domain: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#577a2c]/30 text-zinc-900 font-mono"
+                  placeholder="app.miagencia.com" />
+                <p className="text-[11px] text-slate-400 mt-1">Configurá el DNS apuntando a Vercel para activarlo.</p>
+              </Field>
+
+              {wlError && <InlineAlert type="error" message={wlError} onDismiss={() => setWlError('')} />}
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={onClose} className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl text-sm">
+                Cancelar
+              </button>
+              <SaveButton
+                status={wlStatus}
+                onClick={handleSaveWhitelabel}
+                idleLabel="Guardar marca"
+                savedLabel="¡Guardado!"
                 className="flex-1 py-3 justify-center"
               />
             </div>

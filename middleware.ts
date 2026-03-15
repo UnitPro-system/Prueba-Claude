@@ -12,11 +12,12 @@ export async function middleware(request: NextRequest) {
 
   let hostname = request.headers
     .get("host")!
-    .replace(".localhost:3000", `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`);
+    .replace(`.localhost:3000`, `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`)
+    .replace(`.localhost:3200`, `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`);
 
-  // Casos especiales para localhost en desarrollo
-  if (hostname.includes("localhost:3000")) {
-     hostname = hostname.replace("localhost:3000", process.env.NEXT_PUBLIC_ROOT_DOMAIN!);
+  // Casos especiales para localhost en desarrollo (cualquier puerto)
+  if (hostname.startsWith("localhost")) {
+    hostname = process.env.NEXT_PUBLIC_ROOT_DOMAIN!;
   }
 
   const searchParams = request.nextUrl.searchParams.toString();

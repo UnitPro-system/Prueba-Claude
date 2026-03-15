@@ -1,13 +1,19 @@
 "use client";
 // blocks/landing/public/HeroSection.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, CalendarIcon } from "lucide-react";
 import { SafeHTML } from "@/components/ui/SafeHTML";
 import type { BlockSectionProps } from "@/types/blocks";
+import { trackPageView } from "@/lib/tracking";
 
 export default function HeroSection({ negocio, config: blockConfig }: BlockSectionProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Registra pageview al montar la landing (fire-and-forget)
+  useEffect(() => {
+    if (negocio?.id) trackPageView(negocio.id);
+  }, [negocio?.id]);
 
   const raw = negocio?.config_web || {};
   const cfg = {

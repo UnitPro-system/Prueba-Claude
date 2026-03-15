@@ -27,6 +27,14 @@ export interface AgencyProfile {
   email: string;
   slug: string;
   logo_url?: string;
+  plan?: string;
+  whitelabel_config?: {
+    name?: string;
+    logoUrl?: string;
+    primaryColor?: string;
+    domain?: string;
+    favicon?: string;
+  };
 }
 
 export interface NewClientData {

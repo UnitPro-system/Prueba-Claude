@@ -5,9 +5,10 @@
 
 import { useState, useRef } from "react";
 import type { RefObject } from "react";
-import { 
-  Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail, 
-  MessageCircle, CreditCard, Instagram, Phone, Users 
+import {
+  Plus, Trash2, ChevronDown, ChevronUp, Minus, User, Mail,
+  MessageCircle, CreditCard, Instagram, Phone, Users,
+  Sparkles, Loader2
 } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import ScheduleEditor  from "@/components/editors/ScheduleEditor";
@@ -57,7 +58,7 @@ function fmtDur(min: number): string {
 
 // ─── Panel principal ──────────────────────────────────────────────────────────
 export default function CalendarPanel({
-  config, updateConfig, updateConfigRoot, updateArray,
+  negocio, config, updateConfig, updateConfigRoot, updateArray,
   pushToArray, removeFromArray,
 }: BlockEditorProps) {
   const servicios = config.servicios || { mostrar: true, titulo: "Nuestros Servicios", items: [] };
@@ -66,6 +67,39 @@ export default function CalendarPanel({
   const schedule  = config.schedule  || {};
 
   const [openWorker, setOpenWorker] = useState<number | null>(null);
+  const [aiLoadingIdx, setAiLoadingIdx] = useState<number | null>(null);
+  const [aiMsg, setAiMsg] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  const showAiMsg = (text: string, type: 'success' | 'error' | 'warning') => {
+    setAiMsg({ text, type });
+    setTimeout(() => setAiMsg(null), 3500);
+  };
+
+  // Genera una descripción breve para un servicio usando IA (consume 1 UC)
+  const handleGenerateServiceDesc = async (index: number, serviceName: string) => {
+    if (!serviceName?.trim()) { showAiMsg('Primero ingresá el nombre del servicio.', 'warning'); return; }
+    setAiLoadingIdx(index);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'service_description',
+          params: { serviceName, businessName: negocio.nombre },
+          negocioId: negocio.id,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 402) { showAiMsg('No tenés UnitCoins suficientes.', 'warning'); return; }
+      if (!data.success) { showAiMsg('Error al generar descripción.', 'error'); return; }
+      updateArray('servicios', index, 'desc', data.result);
+      showAiMsg(`✨ Descripción generada — 1 UC usado`, 'success');
+    } catch {
+      showAiMsg('Error de conexión.', 'error');
+    } finally {
+      setAiLoadingIdx(null);
+    }
+  };
 
   // ── Servicios ─────────────────────────────────────────────────────────────
   const addServicio = () => pushToArray("servicios", {
@@ -113,6 +147,16 @@ export default function CalendarPanel({
                 placeholder="Nuestros Servicios" />
             </div>
 
+            {aiMsg && (
+              <div className={`text-xs px-3 py-2 rounded-lg font-medium ${
+                aiMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                aiMsg.type === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {aiMsg.text}
+              </div>
+            )}
+
             <div className="space-y-3">
               {(servicios.items || []).map((item: any, i: number) => (
                 <div key={i} className="p-3 border border-zinc-200 rounded-xl bg-zinc-50 relative space-y-3">
@@ -127,7 +171,18 @@ export default function CalendarPanel({
                       placeholder="Corte de pelo" />
                   </div>
                   <div>
-                    <Label>Descripción breve</Label>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label>Descripción breve</Label>
+                      <button
+                        onClick={() => handleGenerateServiceDesc(i, item.titulo)}
+                        disabled={aiLoadingIdx !== null}
+                        title="Generar con IA (1 UC)"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-zinc-200 text-zinc-400 hover:border-[#577a2c] hover:text-[#577a2c] hover:bg-[#577a2c]/5 transition-all disabled:opacity-50"
+                      >
+                        {aiLoadingIdx === i ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                        IA
+                      </button>
+                    </div>
                     <Input value={item.desc}
                       onChange={(v: string) => updateArray("servicios", i, "desc", v)}
                       placeholder="Descripción opcional" />

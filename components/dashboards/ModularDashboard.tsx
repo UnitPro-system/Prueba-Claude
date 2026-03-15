@@ -14,9 +14,13 @@ import { rescheduleBooking }  from "@/app/actions/service-booking/calendar-actio
 import { approveAppointment } from "@/app/actions/confirm-booking/manage-appointment";
 import { BLOCKS_REGISTRY }   from "@/blocks/_registry";
 import ModularEditor         from "@/components/editors/ModularEditor";
+import OnboardingWizard      from "@/components/onboarding/OnboardingWizard";
 import type { BlockId, BlockSharedData } from "@/types/blocks";
+import { useWhitelabel } from "@/lib/hooks/useWhitelabel";
 
-const PRIMARY = "#577a2c";
+const PRIMARY = "#577a2c"; // default — overridden by wl.primaryColor when isWhitelabel
+// Effective primary color: use whitelabel override when available
+// (applied after hook resolves via useEffect on CSS variable)
 const BG      = "#eee9dd";
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -51,6 +55,16 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
   const [activeTab, setActiveTab]       = useState<BlockId>("resumen");
   const [mobileOpen, setMobileOpen]     = useState(false);
   const [editorOpen, setEditorOpen]     = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const wl = useWhitelabel(initialData.id, initialData.agency_id ?? null);
+
+  // Apply whitelabel primary color as CSS variable whenever it changes
+  useEffect(() => {
+    if (wl.isWhitelabel && wl.primaryColor) {
+      document.documentElement.style.setProperty('--color-primary', wl.primaryColor);
+    }
+  }, [wl.primaryColor, wl.isWhitelabel]);
 
   // ── Estado de modales del shell ────────────────────────────────────────────
   const [contactModal,    setContactModal]    = useState({ show: false, email: "", name: "" });
@@ -99,6 +113,19 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
       }
       await fetchData();
       setLoading(false);
+
+      // Show the onboarding wizard for new negocios that have no active blocks yet.
+      const { data: tenantBlocksCheck } = await createClient()
+        .from('tenant_blocks')
+        .select('block_id')
+        .eq('negocio_id', initialData.id)
+        .eq('active', true);
+      const hasNoBlocks = !tenantBlocksCheck || tenantBlocksCheck.length === 0;
+      const alreadyDone = typeof window !== 'undefined'
+        && !!localStorage.getItem(`unitpro_onboarding_done_${initialData.id}`);
+      if (hasNoBlocks && !alreadyDone) {
+        setShowOnboarding(true);
+      }
     }
     init();
   }, []);
@@ -187,6 +214,19 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
     setIsSending(false);
   };
 
+  // ── Onboarding wizard ─────────────────────────────────────────────────────
+  if (showOnboarding) {
+    return (
+      <OnboardingWizard
+        negocio={negocio}
+        onComplete={() => {
+          setShowOnboarding(false);
+          fetchData();
+        }}
+      />
+    );
+  }
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="h-full w-full flex items-center justify-center min-h-[500px]" style={{ backgroundColor: BG }}>
@@ -199,8 +239,11 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
 
   const ActiveAdmin = BLOCKS_REGISTRY[activeTab]?.AdminComponent;
   const activeConfig = {};
-  const logoSrc = negocio.config_web?.metadata?.faviconURL || negocio.config_web?.logoUrl;
+  const logoSrc = wl.isWhitelabel
+    ? (wl.logoUrl || negocio.config_web?.metadata?.faviconURL || negocio.config_web?.logoUrl)
+    : (negocio.config_web?.metadata?.faviconURL || negocio.config_web?.logoUrl);
   const nombre  = negocio.config_web?.hero?.titulo || negocio.nombre;
+  const platformName = wl.isWhitelabel ? wl.platformName : 'UnitPro';
 
   // Negocio directo → siempre puede editar.
   // Negocio via agencia → solo si la agencia habilitó editor_enabled.
@@ -214,7 +257,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
       <button
         onClick={() => { setActiveTab(def.id); setMobileOpen(false); }}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive ? "text-white shadow-sm" : "text-zinc-600 hover:bg-zinc-100/60"}`}
-        style={isActive ? { backgroundColor: PRIMARY } : {}}>
+        style={isActive ? { backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY } : {}}>
         <span className="shrink-0">{ICON_MAP[def.icon] ?? <Puzzle size={18} />}</span>
         <span className="flex-1 text-left">{def.name}</span>
         {badge !== undefined && (
@@ -238,7 +281,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
             <img src={logoSrc} alt="Logo" className="w-8 h-8 object-contain rounded-md" />
           ) : (
             <div className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-sm shrink-0"
-              style={{ backgroundColor: PRIMARY }}>
+              style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
               {negocio.nombre?.substring(0, 1)}
             </div>
           )}
@@ -260,7 +303,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
               <button
                 onClick={() => { setEditorOpen(true); setMobileOpen(false); }}
                 className="flex items-center gap-3 p-3 rounded-lg text-sm font-bold text-white"
-                style={{ backgroundColor: PRIMARY }}>
+                style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
                 <Pencil size={18} /> Editar Página
               </button>
             )}
@@ -281,7 +324,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
               <img src={logoSrc} alt="Logo" className="w-9 h-9 object-contain rounded-md" />
             ) : (
               <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
-                style={{ backgroundColor: PRIMARY }}>
+                style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
                 {negocio.nombre?.substring(0, 1)}
               </div>
             )}
@@ -304,7 +347,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
             <button
               onClick={() => setEditorOpen(true)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90"
-              style={{ backgroundColor: PRIMARY }}>
+              style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
               <Pencil size={16} /> Editar Página
             </button>
           )}
@@ -347,7 +390,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
               </button>
               <button onClick={handleRescheduleSave}
                 className="flex-1 py-2.5 font-bold text-white rounded-xl transition-colors"
-                style={{ backgroundColor: PRIMARY }}>
+                style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
                 Guardar
               </button>
             </div>
@@ -383,7 +426,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
               </button>
               <button onClick={handleConfirmSave} disabled={isConfirming}
                 className="flex-1 py-2.5 font-bold text-white rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
-                style={{ backgroundColor: PRIMARY }}>
+                style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
                 {isConfirming ? <Loader2 size={16} className="animate-spin" /> : "Confirmar"}
               </button>
             </div>
@@ -414,7 +457,7 @@ export default function ModularDashboard({ initialData }: { initialData: any }) 
               </button>
               <button onClick={handleSendEmail} disabled={isSending}
                 className="flex-1 py-2.5 font-bold text-white rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
-                style={{ backgroundColor: PRIMARY }}>
+                style={{ backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY }}>
                 {isSending ? <Loader2 size={16} className="animate-spin" /> : "Enviar"}
               </button>
             </div>

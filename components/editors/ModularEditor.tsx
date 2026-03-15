@@ -9,11 +9,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Save, Monitor, Smartphone, ExternalLink,
   ChevronLeft, Loader2, Check, ChevronDown,
+  Sparkles, Zap,
 } from "lucide-react";
 import { createClient }    from "@/lib/supabase";
 import { BLOCKS_REGISTRY } from "@/blocks/_registry";
 import type { BlockId, BlockEditorProps } from "@/types/blocks";
 import { GOOGLE_FONTS } from "@/lib/fonts";
+import { useWhitelabel } from "@/lib/hooks/useWhitelabel";
 
 const PRIMARY = "#577a2c";
 
@@ -48,6 +50,21 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [dirty,     setDirty]     = useState(false);
+  const [editorMode, setEditorMode] = useState<'easy' | 'pro'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('unitpro_editor_mode') as 'easy' | 'pro') || 'easy';
+    }
+    return 'easy';
+  });
+
+  const wl = useWhitelabel(negocio.id, negocio.agency_id ?? null);
+
+  // Apply whitelabel primary color as CSS variable whenever it changes
+  useEffect(() => {
+    if (wl.isWhitelabel && wl.primaryColor) {
+      document.documentElement.style.setProperty('--color-primary', wl.primaryColor);
+    }
+  }, [wl.primaryColor, wl.isWhitelabel]);
 
   const iframeRef   = useRef<HTMLIFrameElement>(null);
   const configRef   = useRef(config);
@@ -59,6 +76,11 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
   const previewUrl = `/${negocio.slug}?preview=1`;
   // Link externo muestra la versión pública real
   const publicUrl  = `/${negocio.slug}`;
+
+  // ── Persistir editorMode en localStorage ──────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem('unitpro_editor_mode', editorMode);
+  }, [editorMode]);
 
   // ── Cargar bloques activos ─────────────────────────────────────────────────
   useEffect(() => {
@@ -160,6 +182,7 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
     negocio, config, dbFields,
     updateConfig, updateConfigRoot, updateArray,
     pushToArray, removeFromArray, updateDb,
+    editorMode,
   };
 
   const ActivePanel = BLOCKS_REGISTRY[activeTab]?.EditorPanel;
@@ -220,6 +243,28 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
               <p className="text-xs text-zinc-400">Editor de página</p>
             </div>
           </div>
+          <div className="flex bg-zinc-100 rounded-full p-0.5 border border-zinc-200">
+            <button
+              onClick={() => setEditorMode('easy')}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs transition-all ${
+                editorMode === 'easy'
+                  ? 'bg-[#577a2c]/10 text-[#577a2c] font-bold'
+                  : 'text-zinc-400 hover:text-zinc-600'
+              }`}
+            >
+              <Sparkles size={12} /> Easy
+            </button>
+            <button
+              onClick={() => setEditorMode('pro')}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs transition-all ${
+                editorMode === 'pro'
+                  ? 'bg-zinc-800 text-white font-bold'
+                  : 'text-zinc-400 hover:text-zinc-600'
+              }`}
+            >
+              <Zap size={12} /> Pro
+            </button>
+          </div>
           <a href={publicUrl} target="_blank" rel="noopener noreferrer"
             className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors lg:hidden">
             <ExternalLink size={16} />
@@ -268,7 +313,7 @@ export default function ModularEditor({ negocio, onClose, onSaved }: ModularEdit
               !dirty ? "bg-zinc-100 text-zinc-400 cursor-not-allowed" :
               "text-white hover:opacity-90"
             }`}
-            style={!saved && dirty ? { backgroundColor: PRIMARY } : {}}>
+            style={!saved && dirty ? { backgroundColor: wl.isWhitelabel ? wl.primaryColor : PRIMARY } : {}}>
             {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</>
              : saved ? <><Check size={16} /> ¡Guardado!</>
              : <><Save size={16} /> Guardar cambios</>}

@@ -40,6 +40,7 @@ export interface BlockEditorProps {
   pushToArray:      (section: string, item: any) => void;
   removeFromArray:  (section: string, index: number) => void;
   updateDb:         (field: string, value: any) => void;
+  editorMode?:      'easy' | 'pro';
 }
 
 // ─── IDs ──────────────────────────────────────────────────────────────────────
